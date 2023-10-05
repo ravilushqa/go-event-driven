@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients"
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients/receipts"
@@ -23,6 +24,22 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type IssueReceiptRequest struct {
+	TicketID string
+	Price    Money
+}
+
+type TicketBookingConfirmed struct {
+	Header        EventHeader `json:"header"`
+	TicketID      string      `json:"ticket_id"`
+	CustomerEmail string      `json:"customer_email"`
+	Price         Money       `json:"price"`
+}
+type EventHeader struct {
+	ID          string `json:"id"`
+	PublishedAt string `json:"published_at"`
+}
+
 type TicketsStatusRequest struct {
 	Tickets []TicketStatus `json:"tickets"`
 }
@@ -37,17 +54,6 @@ type TicketStatus struct {
 type Money struct {
 	Amount   string `json:"amount"`
 	Currency string `json:"currency"`
-}
-
-type IssueReceiptPayload struct {
-	TicketID string `json:"ticket_id"`
-	Price    Money  `json:"price"`
-}
-
-type AppendToTrackerPayload struct {
-	TicketID      string `json:"ticket_id"`
-	CustomerEmail string `json:"customer_email"`
-	Price         Money  `json:"price"`
 }
 
 func main() {
@@ -105,15 +111,8 @@ func main() {
 		}
 
 		for _, ticket := range request.Tickets {
-			issuePayload := IssueReceiptPayload{
-				TicketID: ticket.TicketID,
-				Price: Money{
-					Amount:   ticket.Price.Amount,
-					Currency: ticket.Price.Currency,
-				},
-			}
-
-			printTicketPayload := AppendToTrackerPayload{
+			event := TicketBookingConfirmed{
+				Header:        newHeader(),
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price: Money{
@@ -122,23 +121,13 @@ func main() {
 				},
 			}
 
-			issueData, err := json.Marshal(issuePayload)
-			if err != nil {
-				return err
-			}
-			printTicketData, err := json.Marshal(printTicketPayload)
+			payload, err := json.Marshal(event)
 			if err != nil {
 				return err
 			}
 
-			issueMsg := message.NewMessage(watermill.NewUUID(), issueData)
-			err = pub.Publish("issue-receipt", issueMsg)
-			if err != nil {
-				return err
-			}
-
-			pringTicketMsg := message.NewMessage(watermill.NewUUID(), printTicketData)
-			err = pub.Publish("append-to-tracker", pringTicketMsg)
+			msg := message.NewMessage(watermill.NewUUID(), payload)
+			err = pub.Publish("TicketBookingConfirmed", msg)
 			if err != nil {
 				return err
 			}
@@ -158,25 +147,31 @@ func main() {
 
 	router.AddNoPublisherHandler(
 		"issue_receipt",
-		"issue-receipt",
+		"TicketBookingConfirmed",
 		issueReceiptSub,
 		func(msg *message.Message) error {
-			payload := &IssueReceiptPayload{}
-			err := json.Unmarshal(msg.Payload, payload)
+			event := &TicketBookingConfirmed{}
+			err := json.Unmarshal(msg.Payload, event)
 			if err != nil {
 				return err
 			}
 
-			return receiptsClient.IssueReceipt(msg.Context(), payload)
+			return receiptsClient.IssueReceipt(msg.Context(), &IssueReceiptRequest{
+				TicketID: event.TicketID,
+				Price: Money{
+					Amount:   event.Price.Amount,
+					Currency: event.Price.Currency,
+				},
+			})
 		},
 	)
 
 	router.AddNoPublisherHandler(
 		"print_ticket",
-		"append-to-tracker",
+		"TicketBookingConfirmed",
 		appendToTrackerSub,
 		func(msg *message.Message) error {
-			payload := &AppendToTrackerPayload{}
+			payload := &TicketBookingConfirmed{}
 			err := json.Unmarshal(msg.Payload, payload)
 			if err != nil {
 				return err
@@ -231,7 +226,7 @@ func NewReceiptsClient(clients *clients.Clients) ReceiptsClient {
 	}
 }
 
-func (c ReceiptsClient) IssueReceipt(ctx context.Context, request *IssueReceiptPayload) error {
+func (c ReceiptsClient) IssueReceipt(ctx context.Context, request *IssueReceiptRequest) error {
 	body := receipts.PutReceiptsJSONRequestBody{
 		TicketId: request.TicketID,
 		Price: receipts.Money{
@@ -275,4 +270,11 @@ func (c SpreadsheetsClient) AppendRow(ctx context.Context, spreadsheetName strin
 	}
 
 	return nil
+}
+
+func newHeader() EventHeader {
+	return EventHeader{
+		ID:          watermill.NewUUID(),
+		PublishedAt: time.Now().UTC().Format(time.RFC3339),
+	}
 }
