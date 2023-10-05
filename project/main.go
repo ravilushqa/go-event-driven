@@ -35,6 +35,14 @@ type TicketBookingConfirmed struct {
 	CustomerEmail string      `json:"customer_email"`
 	Price         Money       `json:"price"`
 }
+
+type TicketBookingCanceled struct {
+	Header        EventHeader `json:"header"`
+	TicketID      string      `json:"ticket_id"`
+	CustomerEmail string      `json:"customer_email"`
+	Price         Money       `json:"price"`
+}
+
 type EventHeader struct {
 	ID          string `json:"id"`
 	PublishedAt string `json:"published_at"`
@@ -101,6 +109,14 @@ func main() {
 		panic(err)
 	}
 
+	refundReceiptSub, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
+		Client:        rdb,
+		ConsumerGroup: "refund-receipt",
+	}, watermillLogger)
+	if err != nil {
+		panic(err)
+	}
+
 	e := commonHTTP.NewEcho()
 
 	e.POST("/tickets-status", func(c echo.Context) error {
@@ -111,26 +127,50 @@ func main() {
 		}
 
 		for _, ticket := range request.Tickets {
-			event := TicketBookingConfirmed{
-				Header:        newHeader(),
-				TicketID:      ticket.TicketID,
-				CustomerEmail: ticket.CustomerEmail,
-				Price: Money{
-					Amount:   ticket.Price.Amount,
-					Currency: ticket.Price.Currency,
-				},
+			switch ticket.Status {
+			case "confirmed":
+				event := TicketBookingConfirmed{
+					Header:        newHeader(),
+					TicketID:      ticket.TicketID,
+					CustomerEmail: ticket.CustomerEmail,
+					Price: Money{
+						Amount:   ticket.Price.Amount,
+						Currency: ticket.Price.Currency,
+					},
+				}
+
+				payload, err := json.Marshal(event)
+				if err != nil {
+					return err
+				}
+				msg := message.NewMessage(watermill.NewUUID(), payload)
+				err = pub.Publish("TicketBookingConfirmed", msg)
+				if err != nil {
+					return err
+				}
+			case "canceled":
+				event := TicketBookingCanceled{
+					Header:        newHeader(),
+					TicketID:      ticket.TicketID,
+					CustomerEmail: ticket.CustomerEmail,
+					Price: Money{
+						Amount:   ticket.Price.Amount,
+						Currency: ticket.Price.Currency,
+					},
+				}
+				payload, err := json.Marshal(event)
+				if err != nil {
+					return err
+				}
+				msg := message.NewMessage(watermill.NewUUID(), payload)
+				err = pub.Publish("TicketBookingCanceled", msg)
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unexpected status")
 			}
 
-			payload, err := json.Marshal(event)
-			if err != nil {
-				return err
-			}
-
-			msg := message.NewMessage(watermill.NewUUID(), payload)
-			err = pub.Publish("TicketBookingConfirmed", msg)
-			if err != nil {
-				return err
-			}
 		}
 
 		return c.NoContent(http.StatusOK)
@@ -180,6 +220,25 @@ func main() {
 			return spreadsheetsClient.AppendRow(
 				msg.Context(),
 				"tickets-to-print",
+				[]string{payload.TicketID, payload.CustomerEmail, payload.Price.Amount, payload.Price.Currency},
+			)
+		},
+	)
+
+	router.AddNoPublisherHandler(
+		"refund_ticket",
+		"TicketBookingCanceled",
+		refundReceiptSub,
+		func(msg *message.Message) error {
+			payload := &TicketBookingCanceled{}
+			err := json.Unmarshal(msg.Payload, payload)
+			if err != nil {
+				return err
+			}
+
+			return spreadsheetsClient.AppendRow(
+				msg.Context(),
+				"tickets-to-refund",
 				[]string{payload.TicketID, payload.CustomerEmail, payload.Price.Amount, payload.Price.Currency},
 			)
 		},
