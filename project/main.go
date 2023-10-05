@@ -34,42 +34,36 @@ func main() {
 	receiptsClient := NewReceiptsClient(clients)
 	spreadsheetsClient := NewSpreadsheetsClient(clients)
 
+	watermillLogger := log.NewWatermill(logrus.NewEntry(logrus.StandardLogger()))
+
 	rdb := redis.NewClient(&redis.Options{
 		Addr: os.Getenv("REDIS_ADDR"),
 	})
 
-	logger := watermill.NewStdLogger(false, false)
-
-	publisher, err := redisstream.NewPublisher(redisstream.PublisherConfig{
+	pub, err := redisstream.NewPublisher(redisstream.PublisherConfig{
 		Client: rdb,
-	}, logger)
+	}, watermillLogger)
 	if err != nil {
 		panic(err)
 	}
 
-	issueSub, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
+	issueReceiptSub, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
 		Client:        rdb,
 		ConsumerGroup: "issue-receipt",
-	}, logger)
+	}, watermillLogger)
 	if err != nil {
 		panic(err)
 	}
 
-	trackerSub, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
+	appendToTrackerSub, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
 		Client:        rdb,
 		ConsumerGroup: "append-to-tracker",
-	}, logger)
+	}, watermillLogger)
 	if err != nil {
 		panic(err)
 	}
 
 	e := commonHTTP.NewEcho()
-
-	iw := NewIssueWorker(publisher, issueSub, receiptsClient)
-	tw := NewTrackerWorker(publisher, trackerSub, spreadsheetsClient)
-
-	go iw.Run(context.Background())
-	go tw.Run(context.Background())
 
 	e.POST("/tickets-confirmation", func(c echo.Context) error {
 		var request TicketsConfirmationRequest
@@ -79,16 +73,13 @@ func main() {
 		}
 
 		for _, ticket := range request.Tickets {
-			err = iw.Send(
-				&message.Message{Payload: []byte(ticket)},
-			)
+			msg := message.NewMessage(watermill.NewUUID(), []byte(ticket))
+			err = pub.Publish("issue-receipt", msg)
 			if err != nil {
 				return err
 			}
 
-			err = tw.Send(
-				&message.Message{Payload: []byte(ticket)},
-			)
+			err = pub.Publish("append-to-tracker", msg)
 			if err != nil {
 				return err
 			}
@@ -96,6 +87,36 @@ func main() {
 
 		return c.NoContent(http.StatusOK)
 	})
+
+	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
+	if err != nil {
+		panic(err)
+	}
+
+	router.AddNoPublisherHandler(
+		"issue_receipt",
+		"issue-receipt",
+		issueReceiptSub,
+		func(msg *message.Message) error {
+			return receiptsClient.IssueReceipt(msg.Context(), string(msg.Payload))
+		},
+	)
+
+	router.AddNoPublisherHandler(
+		"print_ticket",
+		"append-to-tracker",
+		appendToTrackerSub,
+		func(msg *message.Message) error {
+			return spreadsheetsClient.AppendRow(msg.Context(), "tickets-to-print", []string{string(msg.Payload)})
+		},
+	)
+
+	go func() {
+		err = router.Run(context.Background())
+		if err != nil {
+			panic(err)
+		}
+	}()
 
 	logrus.Info("Server starting...")
 
