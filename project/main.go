@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients"
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients/receipts"
@@ -17,6 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 type TicketsConfirmationRequest struct {
@@ -24,8 +27,13 @@ type TicketsConfirmationRequest struct {
 }
 
 func main() {
+	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+
 	log.Init(logrus.InfoLevel)
 
+	// deps
 	clients, err := clients.NewClients(os.Getenv("GATEWAY_ADDR"), nil)
 	if err != nil {
 		panic(err)
@@ -88,6 +96,10 @@ func main() {
 		return c.NoContent(http.StatusOK)
 	})
 
+	e.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
 	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
 	if err != nil {
 		panic(err)
@@ -111,17 +123,33 @@ func main() {
 		},
 	)
 
-	go func() {
-		err = router.Run(context.Background())
-		if err != nil {
-			panic(err)
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return router.Run(ctx)
+	})
+
+	g.Go(func() error {
+		<-router.Running()
+		logrus.Info("Server starting...")
+
+		err := e.Start(":8080")
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
 		}
-	}()
 
-	logrus.Info("Server starting...")
+		return nil
+	})
 
-	err = e.Start(":8080")
-	if err != nil && err != http.ErrServerClosed {
+	g.Go(func() error {
+		// Shut down the HTTP server
+		<-ctx.Done()
+		return e.Shutdown(ctx)
+	})
+
+	// Will block until all goroutines finish
+	err = g.Wait()
+	if err != nil {
 		panic(err)
 	}
 }
