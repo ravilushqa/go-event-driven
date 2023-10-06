@@ -285,7 +285,7 @@ func main() {
 
 func LoggingMiddleware(next message.HandlerFunc) message.HandlerFunc {
 	return func(msg *message.Message) ([]*message.Message, error) {
-		logger := logrus.WithField("message_uuid", msg.UUID)
+		logger := log.FromContext(msg.Context()).WithField("message_uuid", msg.UUID)
 
 		logger.Info("Handling a message")
 
@@ -295,12 +295,15 @@ func LoggingMiddleware(next message.HandlerFunc) message.HandlerFunc {
 
 func PropogateCorrelationIDMiddleware(next message.HandlerFunc) message.HandlerFunc {
 	return func(msg *message.Message) ([]*message.Message, error) {
+
 		correlationID := msg.Metadata.Get("correlation_id")
 		if correlationID == "" {
 			correlationID = shortuuid.New()
 		}
 
 		ctx := log.ContextWithCorrelationID(msg.Context(), correlationID)
+		ctx = log.ToContext(ctx, logrus.WithFields(logrus.Fields{"correlation_id": correlationID}))
+
 		msg.SetContext(ctx)
 
 		return next(msg)
