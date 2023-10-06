@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"tickets/entity"
@@ -10,9 +11,10 @@ import (
 
 // MockReceiptsService implements ReceiptsService for testing purposes
 type MockReceiptsService struct {
+	mu               sync.Mutex
 	t                *testing.T
 	IssueReceiptFunc func(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error)
-	IssuedReceipts   []*entity.IssueReceiptRequest
+	IssuedReceipts   []entity.IssueReceiptRequest
 }
 
 // NewMockReceiptsService creates a new mock for ReceiptsService
@@ -26,9 +28,12 @@ func NewMockReceiptsService(t *testing.T) *MockReceiptsService {
 
 // IssueReceipt mock implementation
 func (m *MockReceiptsService) IssueReceipt(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error) {
-	if m.IssueReceiptFunc != nil {
-		return m.IssueReceiptFunc(ctx, request)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.IssuedReceipts = append(m.IssuedReceipts, request)
+	if m.IssueReceiptFunc == nil {
+		return entity.IssueReceiptResponse{}, errors.New("IssueReceipt not implemented")
 	}
 
-	return entity.IssueReceiptResponse{}, errors.New("IssueReceipt not implemented")
+	return m.IssueReceiptFunc(ctx, request)
 }
