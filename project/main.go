@@ -218,6 +218,10 @@ func main() {
 				return err
 			}
 
+			if event.Price.Currency == "" {
+				event.Price.Currency = "USD"
+			}
+
 			return receiptsClient.IssueReceipt(msg.Context(), &IssueReceiptRequest{
 				TicketID: event.TicketID,
 				Price: Money{
@@ -238,16 +242,20 @@ func main() {
 				return nil
 			}
 
-			payload := &TicketBookingConfirmed{}
-			err := json.Unmarshal(msg.Payload, payload)
+			event := &TicketBookingConfirmed{}
+			err := json.Unmarshal(msg.Payload, event)
 			if err != nil {
 				return err
+			}
+
+			if event.Price.Currency == "" {
+				event.Price.Currency = "USD"
 			}
 
 			return spreadsheetsClient.AppendRow(
 				msg.Context(),
 				"tickets-to-print",
-				[]string{payload.TicketID, payload.CustomerEmail, payload.Price.Amount, payload.Price.Currency},
+				[]string{event.TicketID, event.CustomerEmail, event.Price.Amount, event.Price.Currency},
 			)
 		},
 	)
