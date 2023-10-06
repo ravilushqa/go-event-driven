@@ -27,12 +27,15 @@ import (
 	"tickets/pkg"
 )
 
-const (
+var (
 	httpAddress  = ":8080"
 	redisAddress = "localhost:6379"
 )
 
 func TestComponent(t *testing.T) {
+	if os.Getenv("REDIS_ADDR") != "" {
+		redisAddress = os.Getenv("REDIS_ADDR")
+	}
 	defer goleak.VerifyNone(t)
 	receiptsClient := mocks.NewMockReceiptsService(t)
 	receiptsClient.IssueReceiptFunc = func(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error) {
