@@ -19,6 +19,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/labstack/echo/v4"
+	"github.com/lithammer/shortuuid/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -72,7 +73,10 @@ func main() {
 	log.Init(logrus.InfoLevel)
 
 	// deps
-	clients, err := clients.NewClients(os.Getenv("GATEWAY_ADDR"), nil)
+	clients, err := clients.NewClients(os.Getenv("GATEWAY_ADDR"), func(ctx context.Context, req *http.Request) error {
+		req.Header.Set("Correlation-ID", log.CorrelationIDFromContext(ctx))
+		return nil
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -144,6 +148,7 @@ func main() {
 					return err
 				}
 				msg := message.NewMessage(watermill.NewUUID(), payload)
+				msg.Metadata.Set("correlation_id", c.Request().Header.Get("Correlation-ID"))
 				err = pub.Publish("TicketBookingConfirmed", msg)
 				if err != nil {
 					return err
@@ -163,6 +168,7 @@ func main() {
 					return err
 				}
 				msg := message.NewMessage(watermill.NewUUID(), payload)
+				msg.Metadata.Set("correlation_id", c.Request().Header.Get("Correlation-ID"))
 				err = pub.Publish("TicketBookingCanceled", msg)
 				if err != nil {
 					return err
@@ -185,7 +191,7 @@ func main() {
 		panic(err)
 	}
 
-	router.AddMiddleware(LoggingMiddleware)
+	router.AddMiddleware(PropogateCorrelationIDMiddleware, LoggingMiddleware)
 
 	router.AddNoPublisherHandler(
 		"issue_receipt",
@@ -282,6 +288,20 @@ func LoggingMiddleware(next message.HandlerFunc) message.HandlerFunc {
 		logger := logrus.WithField("message_uuid", msg.UUID)
 
 		logger.Info("Handling a message")
+
+		return next(msg)
+	}
+}
+
+func PropogateCorrelationIDMiddleware(next message.HandlerFunc) message.HandlerFunc {
+	return func(msg *message.Message) ([]*message.Message, error) {
+		correlationID := msg.Metadata.Get("correlation_id")
+		if correlationID == "" {
+			correlationID = shortuuid.New()
+		}
+
+		ctx := log.ContextWithCorrelationID(msg.Context(), correlationID)
+		msg.SetContext(ctx)
 
 		return next(msg)
 	}
