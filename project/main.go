@@ -150,6 +150,7 @@ func main() {
 				}
 				msg := message.NewMessage(watermill.NewUUID(), payload)
 				msg.Metadata.Set("correlation_id", c.Request().Header.Get("Correlation-ID"))
+				msg.Metadata.Set("type", "TicketBookingConfirmed")
 				err = pub.Publish("TicketBookingConfirmed", msg)
 				if err != nil {
 					return err
@@ -170,6 +171,7 @@ func main() {
 				}
 				msg := message.NewMessage(watermill.NewUUID(), payload)
 				msg.Metadata.Set("correlation_id", c.Request().Header.Get("Correlation-ID"))
+				msg.Metadata.Set("type", "TicketBookingCanceled")
 				err = pub.Publish("TicketBookingCanceled", msg)
 				if err != nil {
 					return err
@@ -192,7 +194,7 @@ func main() {
 		panic(err)
 	}
 
-	router.AddMiddleware(PropogateCorrelationIDMiddleware, LoggingMiddleware, middleware.Retry{
+	router.AddMiddleware(PropogateCorrelationIDMiddleware, LoggingMiddleware, SkipBroken, middleware.Retry{
 		MaxRetries:      10,
 		InitialInterval: time.Millisecond * 100,
 		MaxInterval:     time.Second,
@@ -205,6 +207,11 @@ func main() {
 		"TicketBookingConfirmed",
 		issueReceiptSub,
 		func(msg *message.Message) error {
+			// Fixing an incorrect message type
+			if msg.Metadata.Get("type") != "TicketBookingConfirmed" {
+				return nil
+			}
+
 			event := &TicketBookingConfirmed{}
 			err := json.Unmarshal(msg.Payload, event)
 			if err != nil {
@@ -226,6 +233,11 @@ func main() {
 		"TicketBookingConfirmed",
 		appendToTrackerSub,
 		func(msg *message.Message) error {
+			// Fixing an incorrect message type
+			if msg.Metadata.Get("type") != "TicketBookingConfirmed" {
+				return nil
+			}
+
 			payload := &TicketBookingConfirmed{}
 			err := json.Unmarshal(msg.Payload, payload)
 			if err != nil {
@@ -245,6 +257,11 @@ func main() {
 		"TicketBookingCanceled",
 		refundReceiptSub,
 		func(msg *message.Message) error {
+			// Fixing an incorrect message type
+			if msg.Metadata.Get("type") != "TicketBookingCanceled" {
+				return nil
+			}
+
 			payload := &TicketBookingCanceled{}
 			err := json.Unmarshal(msg.Payload, payload)
 			if err != nil {
@@ -302,6 +319,20 @@ func LoggingMiddleware(next message.HandlerFunc) message.HandlerFunc {
 		}
 
 		return messages, err
+	}
+}
+
+func SkipBroken(next message.HandlerFunc) message.HandlerFunc {
+	return func(msg *message.Message) ([]*message.Message, error) {
+		if msg.UUID == "2beaf5bc-d5e4-4653-b075-2b36bbf28949" {
+			return nil, nil
+		}
+
+		if msg.Metadata.Get("type") == "" {
+			return nil, nil
+		}
+
+		return next(msg)
 	}
 }
 
