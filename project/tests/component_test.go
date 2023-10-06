@@ -45,6 +45,9 @@ func TestComponent(t *testing.T) {
 		}, nil
 	}
 	spreadsheetsClient := mocks.NewMockSpreadsheetsAPI(t)
+	spreadsheetsClient.AppendRowFunc = func(ctx context.Context, spreadsheetID string, ticketIDs []string) error {
+		return nil
+	}
 
 	done := make(chan struct{})
 	go func() {
@@ -67,25 +70,33 @@ func TestComponent(t *testing.T) {
 
 	waitForHttpServer(t)
 
-	sendTicketsStatus(t, TicketsStatusRequest{
-		Tickets: []TicketStatus{
-			{
-				TicketID:  "ticket-1",
-				Status:    "confirmed",
-				Price:     Money{Amount: "100", Currency: "USD"},
-				Email:     "test@test.io",
-				BookingID: "booking-1",
-			},
-		},
-	})
-
-	assertReceiptForTicketIssued(t, receiptsClient, TicketStatus{
+	ticket := TicketStatus{
 		TicketID:  "ticket-1",
 		Status:    "confirmed",
 		Price:     Money{Amount: "100", Currency: "USD"},
 		Email:     "test@test.io",
 		BookingID: "booking-1",
-	})
+	}
+
+	sendTicketsStatus(t, TicketsStatusRequest{Tickets: []TicketStatus{ticket}})
+
+	sendTicketsStatus(t, TicketsStatusRequest{Tickets: []TicketStatus{
+		{
+			TicketID: ticket.TicketID,
+			Status:   "canceled",
+			Email:    ticket.Email,
+		},
+	}})
+
+	sendTicketsStatus(t, TicketsStatusRequest{Tickets: []TicketStatus{
+		{
+			TicketID: ticket.TicketID,
+			Status:   "canceled",
+			Email:    ticket.Email,
+		},
+	}})
+
+	assertRowToSheetAdded(t, spreadsheetsClient, ticket, "tickets-to-refund")
 }
 
 func startServer(t *testing.T, receiptsClient *mocks.MockReceiptsService, spreadsheetsClient *mocks.MockSpreadsheetsAPI) error {
@@ -222,4 +233,28 @@ func assertReceiptForTicketIssued(t *testing.T, receiptsService *mocks.MockRecei
 	assert.Equal(t, ticket.TicketID, receipt.TicketID)
 	assert.Equal(t, ticket.Price.Amount, receipt.Price.Amount)
 	assert.Equal(t, ticket.Price.Currency, receipt.Price.Currency)
+}
+
+func assertRowToSheetAdded(t *testing.T, spreadsheetsService *mocks.MockSpreadsheetsAPI, ticket TicketStatus, sheetName string) bool {
+	return assert.EventuallyWithT(
+		t,
+		func(t *assert.CollectT) {
+			rows, ok := spreadsheetsService.AppendedRows[sheetName]
+			if !assert.True(t, ok, "sheet %s not found", sheetName) {
+				return
+			}
+
+			var allValues []string
+
+			for _, row := range rows {
+				for _, col := range row {
+					allValues = append(allValues, col)
+				}
+			}
+
+			assert.Contains(t, allValues, ticket.TicketID, "ticket id not found in sheet %s", sheetName)
+		},
+		10*time.Second,
+		100*time.Millisecond,
+	)
 }
