@@ -21,22 +21,19 @@ type Server struct {
 func NewServer(publisher message.Publisher, spreadsheetsAPIClient SpreadsheetsAPI, addr string) *Server {
 	e := echoHTTP.NewEcho()
 
-	handler := Server{
+	server := &Server{
 		publisher:             publisher,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
 		addr:                  addr,
+		e:                     e,
 	}
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
-	e.POST("/tickets-status", handler.PostTicketsStatus)
+	e.POST("/tickets-status", server.PostTicketsStatus)
 
-	return &Server{
-		publisher:             publisher,
-		spreadsheetsAPIClient: spreadsheetsAPIClient,
-		e:                     e,
-	}
+	return server
 }
 
 func (s Server) Run(ctx context.Context) error {
