@@ -289,7 +289,12 @@ func LoggingMiddleware(next message.HandlerFunc) message.HandlerFunc {
 
 		logger.Info("Handling a message")
 
-		return next(msg)
+		messages, err := next(msg)
+		if err != nil {
+			logger.WithError(err).Error("Message handling error")
+		}
+
+		return messages, err
 	}
 }
 
