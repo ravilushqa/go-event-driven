@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,13 +14,12 @@ import (
 
 	"tickets/gateway"
 	httpHandler "tickets/handler/http"
-	"tickets/handler/subscriber"
+	"tickets/handler/pubsub"
 	"tickets/pkg"
 )
 
 func main() {
-	ctx := context.Background()
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	log.Init(logrus.InfoLevel)
@@ -41,17 +39,9 @@ func main() {
 
 	redisPublisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
 
-	watermillRouter := subscriber.NewWatermillRouter(
-		receiptsClient,
-		spreadsheetsClient,
-		redisClient,
-		watermillLogger,
-	)
+	watermillRouter := pubsub.NewWatermillRouter(receiptsClient, spreadsheetsClient, redisClient, watermillLogger)
 
-	echoRouter := httpHandler.NewHttpRouter(
-		redisPublisher,
-		spreadsheetsClient,
-	)
+	httpServer := httpHandler.NewServer(redisPublisher, spreadsheetsClient, ":8080")
 
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -63,17 +53,12 @@ func main() {
 		// we don't want to start HTTP server before Watermill router (so service won't be healthy before it's ready)
 		<-watermillRouter.Running()
 
-		err := echoRouter.Start(":8080")
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := httpServer.Run(ctx)
+		if err != nil {
 			return err
 		}
 
 		return nil
-	})
-
-	g.Go(func() error {
-		<-ctx.Done()
-		return echoRouter.Shutdown(context.Background())
 	})
 
 	err = g.Wait()

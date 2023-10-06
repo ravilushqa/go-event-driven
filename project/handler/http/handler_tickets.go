@@ -24,7 +24,7 @@ type ticketStatusRequest struct {
 	BookingID     string       `json:"booking_id"`
 }
 
-func (h Handler) PostTicketsStatus(c echo.Context) error {
+func (s Server) PostTicketsStatus(c echo.Context) error {
 	var request ticketsStatusRequest
 	err := c.Bind(&request)
 	if err != nil {
@@ -49,7 +49,7 @@ func (h Handler) PostTicketsStatus(c echo.Context) error {
 			msg.Metadata.Set("correlation_id", c.Request().Header.Get("Correlation-ID"))
 			msg.Metadata.Set("type", "TicketBookingConfirmed")
 
-			err = h.publisher.Publish("TicketBookingConfirmed", msg)
+			err = s.publisher.Publish("TicketBookingConfirmed", msg)
 			if err != nil {
 				return err
 			}
@@ -70,7 +70,7 @@ func (h Handler) PostTicketsStatus(c echo.Context) error {
 			msg.Metadata.Set("correlation_id", c.Request().Header.Get("Correlation-ID"))
 			msg.Metadata.Set("type", "TicketBookingCanceled")
 
-			err = h.publisher.Publish("TicketBookingCanceled", msg)
+			err = s.publisher.Publish("TicketBookingCanceled", msg)
 			if err != nil {
 				return err
 			}
