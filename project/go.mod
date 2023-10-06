@@ -3,10 +3,9 @@ module tickets
 go 1.20
 
 require (
-	github.com/ThreeDotsLabs/go-event-driven v0.0.10
+	github.com/ThreeDotsLabs/go-event-driven v0.0.11
 	github.com/ThreeDotsLabs/watermill v1.3.2
 	github.com/ThreeDotsLabs/watermill-redisstream v1.2.2
-	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/google/uuid v1.3.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/labstack/echo/v4 v4.10.2
@@ -20,7 +19,6 @@ require (
 
 require (
 	github.com/Rican7/retry v0.3.1 // indirect
-	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -43,7 +41,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
-	github.com/yuin/gopher-lua v1.1.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect

@@ -23,7 +23,7 @@ func NewMockReceiptsService(t *testing.T) *MockReceiptsService {
 		panic("missing required argument 't'")
 	}
 
-	return &MockReceiptsService{t: t}
+	return &MockReceiptsService{t: t, IssuedReceipts: make([]entity.IssueReceiptRequest, 0)}
 }
 
 // IssueReceipt mock implementation

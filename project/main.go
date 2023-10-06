@@ -23,7 +23,7 @@ var opts struct {
 	Mock        bool   `long:"mock" env:"MOCK" description:"Mock external services"`
 	HTTPAddress string `long:"http-addr" env:"HTTP_ADDR" default:":8080" description:"HTTP address to listen on"`
 	GatewayAddr string `long:"gateway-addr" env:"GATEWAY_ADDR" description:"Gateway address"`
-	RedisAddr   string `long:"redis-addr" env:"REDIS_ADDR" description:"Redis address"`
+	RedisAddr   string `long:"redis-addr" env:"REDIS_ADDR" default:"localhost:8080" description:"Redis address"`
 }
 
 func main() {
