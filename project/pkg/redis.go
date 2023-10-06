@@ -1,4 +1,4 @@
-package pubsub
+package pkg
 
 import (
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"

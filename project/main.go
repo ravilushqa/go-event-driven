@@ -13,22 +13,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
-	"tickets/entity"
 	"tickets/gateway"
-	ticketsHttp "tickets/http"
-	"tickets/pubsub"
+	httpHandler "tickets/handler/http"
+	"tickets/handler/subscriber"
+	"tickets/pkg"
 )
-
-type TicketsStatusRequest struct {
-	Tickets []TicketStatus `json:"tickets"`
-}
-
-type TicketStatus struct {
-	TicketID      string       `json:"ticket_id"`
-	Status        string       `json:"status"`
-	Price         entity.Money `json:"price"`
-	CustomerEmail string       `json:"customer_email"`
-}
 
 func main() {
 	ctx := context.Background()
@@ -48,18 +37,18 @@ func main() {
 	receiptsClient := gateway.NewReceiptsClient(c)
 	spreadsheetsClient := gateway.NewSpreadsheetsClient(c)
 	watermillLogger := log.NewWatermill(logrus.NewEntry(logrus.StandardLogger()))
-	redisClient := pubsub.NewRedisClient(os.Getenv("REDIS_ADDR"))
+	redisClient := pkg.NewRedisClient(os.Getenv("REDIS_ADDR"))
 
-	redisPublisher := pubsub.NewRedisPublisher(redisClient, watermillLogger)
+	redisPublisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
 
-	watermillRouter := pubsub.NewWatermillRouter(
+	watermillRouter := subscriber.NewWatermillRouter(
 		receiptsClient,
 		spreadsheetsClient,
 		redisClient,
 		watermillLogger,
 	)
 
-	echoRouter := ticketsHttp.NewHttpRouter(
+	echoRouter := httpHandler.NewHttpRouter(
 		redisPublisher,
 		spreadsheetsClient,
 	)

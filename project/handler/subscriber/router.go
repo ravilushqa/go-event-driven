@@ -1,27 +1,25 @@
-package pubsub
+package subscriber
 
 import (
 	"encoding/json"
-
-	"tickets/pubsub/event"
-
-	"tickets/entity"
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/redis/go-redis/v9"
+
+	"tickets/entity"
 )
 
 const brokenMessageID = "2beaf5bc-d5e4-4653-b075-2b36bbf28949"
 
-func NewWatermillRouter(receiptsService event.ReceiptsService, spreadsheetsService event.SpreadsheetsAPI, rdb *redis.Client, watermillLogger watermill.LoggerAdapter) *message.Router {
+func NewWatermillRouter(receiptsService ReceiptsService, spreadsheetsService SpreadsheetsAPI, rdb *redis.Client, watermillLogger watermill.LoggerAdapter) *message.Router {
 	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
 	if err != nil {
 		panic(err)
 	}
 
-	handler := event.NewHandler(spreadsheetsService, receiptsService)
+	handler := NewHandler(spreadsheetsService, receiptsService)
 
 	useMiddlewares(router, watermillLogger)
 

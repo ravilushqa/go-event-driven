@@ -11,14 +11,14 @@ import (
 func NewHttpRouter(publisher message.Publisher, spreadsheetsAPIClient SpreadsheetsAPI) *echo.Echo {
 	e := libHttp.NewEcho()
 
-	e.GET("/health", func(c echo.Context) error {
-		return c.String(http.StatusOK, "ok")
-	})
-
 	handler := Handler{
 		publisher:             publisher,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
 	}
+
+	e.GET("/health", func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
 
 	e.POST("/tickets-status", handler.PostTicketsStatus)
 
