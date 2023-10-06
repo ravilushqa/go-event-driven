@@ -11,7 +11,8 @@ import (
 // MockReceiptsService implements ReceiptsService for testing purposes
 type MockReceiptsService struct {
 	t                *testing.T
-	IssueReceiptFunc func(ctx context.Context, request *entity.IssueReceiptRequest) error
+	IssueReceiptFunc func(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error)
+	IssuedReceipts   []*entity.IssueReceiptRequest
 }
 
 // NewMockReceiptsService creates a new mock for ReceiptsService
@@ -24,9 +25,10 @@ func NewMockReceiptsService(t *testing.T) *MockReceiptsService {
 }
 
 // IssueReceipt mock implementation
-func (m *MockReceiptsService) IssueReceipt(ctx context.Context, request *entity.IssueReceiptRequest) error {
+func (m *MockReceiptsService) IssueReceipt(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error) {
 	if m.IssueReceiptFunc != nil {
 		return m.IssueReceiptFunc(ctx, request)
 	}
-	return errors.New("IssueReceipt not implemented")
+
+	return entity.IssueReceiptResponse{}, errors.New("IssueReceipt not implemented")
 }
