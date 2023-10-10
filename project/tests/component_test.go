@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
+	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/jmoiron/sqlx"
 	"github.com/lithammer/shortuuid/v3"
 	redis2 "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -20,21 +23,27 @@ import (
 	"go.uber.org/goleak"
 	"golang.org/x/sync/errgroup"
 
+	"tickets/db"
 	"tickets/entity"
 	httpHandler "tickets/handler/http"
 	"tickets/handler/pubsub"
 	"tickets/mocks"
 	"tickets/pkg"
+	"tickets/repository/tickets"
 )
 
 var (
 	httpAddress  = ":8080"
 	redisAddress = "localhost:6379"
+	postgresURL  = "postgres://user:password@localhost:5432/db?sslmode=disable"
 )
 
 func TestComponent(t *testing.T) {
 	if os.Getenv("REDIS_ADDR") != "" {
 		redisAddress = os.Getenv("REDIS_ADDR")
+	}
+	if os.Getenv("POSTGRES_URL") != "" {
+		postgresURL = os.Getenv("POSTGRES_URL")
 	}
 	defer goleak.VerifyNone(t)
 	receiptsClient := mocks.NewMockReceiptsService(t)
@@ -110,13 +119,50 @@ func startServer(t *testing.T, receiptsClient *mocks.MockReceiptsService, spread
 		assert.NoError(t, err)
 	}(redisClient)
 
+	dbconn, err := sqlx.Open("postgres", postgresURL)
+	if err != nil {
+		panic(err)
+	}
+	defer dbconn.Close()
+
+	err = db.InitializeDatabaseSchema(dbconn)
+	assert.NoError(t, err)
+
+	ticketRepo := tickets.NewPostgresRepository(dbconn)
+
 	watermillLogger := log.NewWatermill(logrus.NewEntry(logrus.StandardLogger()))
 
-	redisPublisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
+	publisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
 
-	watermillRouter := pubsub.NewWatermillRouter(receiptsClient, spreadsheetsClient, redisClient, watermillLogger)
+	watermillRouter, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
+	if err != nil {
+		panic(err)
+	}
+	pubsub.UseMiddlewares(watermillRouter, watermillLogger)
 
-	httpServer := httpHandler.NewServer(redisPublisher, spreadsheetsClient, httpAddress)
+	eventBus, err := pkg.NewEventBus(publisher)
+	if err != nil {
+		panic(err)
+	}
+
+	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo)
+
+	err = pkg.RegisterEventHandlers(
+		redisClient,
+		watermillRouter,
+		[]cqrs.EventHandler{
+			eventHandlers.StoreTicketHandler(),
+			eventHandlers.AppendToTrackerHandler(),
+			eventHandlers.IssueReceiptHandler(),
+			eventHandlers.CancelTicketHandler(),
+		},
+		watermillLogger,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	httpServer := httpHandler.NewServer(eventBus, spreadsheetsClient, httpAddress)
 
 	g, ctx := errgroup.WithContext(ctx)
 

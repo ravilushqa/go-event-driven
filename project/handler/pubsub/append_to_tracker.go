@@ -9,16 +9,12 @@ import (
 	"tickets/entity"
 )
 
-type SpreadsheetsAPI interface {
-	AppendRow(ctx context.Context, sheetName string, row []string) error
-}
-
-func AppendToTrackerHandler(sa SpreadsheetsAPI) cqrs.EventHandler {
+func (h Handler) AppendToTrackerHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"AppendToTrackerHandler",
 		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
 			log.FromContext(ctx).Info("Appending ticket to the tracker")
-			return sa.AppendRow(
+			return h.spreadsheetsService.AppendRow(
 				ctx,
 				"tickets-to-print",
 				[]string{event.TicketID, event.CustomerEmail, event.Price.Amount, event.Price.Currency},

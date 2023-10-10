@@ -9,12 +9,12 @@ import (
 	"tickets/entity"
 )
 
-func CancelTicketHandler(sa SpreadsheetsAPI) cqrs.EventHandler {
+func (h Handler) CancelTicketHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"CancelTicketHandler",
-		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
+		func(ctx context.Context, event *entity.TicketBookingCanceled) error {
 			log.FromContext(ctx).Info("Adding ticket refund to sheet")
-			return sa.AppendRow(
+			return h.spreadsheetsService.AppendRow(
 				ctx,
 				"tickets-to-refund",
 				[]string{event.TicketID, event.CustomerEmail, event.Price.Amount, event.Price.Currency},

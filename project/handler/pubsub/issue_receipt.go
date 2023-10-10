@@ -9,11 +9,7 @@ import (
 	"tickets/entity"
 )
 
-type ReceiptsService interface {
-	IssueReceipt(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error)
-}
-
-func IssueReceiptHandler(rs ReceiptsService) cqrs.EventHandler {
+func (h Handler) IssueReceiptHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"IssueReceiptHandler",
 		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
@@ -23,7 +19,7 @@ func IssueReceiptHandler(rs ReceiptsService) cqrs.EventHandler {
 				Price:    event.Price,
 			}
 
-			_, err := rs.IssueReceipt(ctx, request)
+			_, err := h.receiptsService.IssueReceipt(ctx, request)
 			return err
 		},
 	)

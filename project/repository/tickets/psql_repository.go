@@ -23,3 +23,11 @@ func (r *PostgresRepository) Store(ctx context.Context, ticket entity.Ticket) er
 	`, ticket)
 	return err
 }
+
+func (r *PostgresRepository) Delete(ctx context.Context, ticketID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM tickets
+		WHERE ticket_id = $1
+	`, ticketID)
+	return err
+}

@@ -88,14 +88,17 @@ func main() {
 		panic(err)
 	}
 
+	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo)
+
 	err = pkg.RegisterEventHandlers(
 		redisClient,
 		watermillRouter,
 		[]cqrs.EventHandler{
-			pubsub.IssueReceiptHandler(receiptsClient),
-			pubsub.AppendToTrackerHandler(spreadsheetsClient),
-			pubsub.CancelTicketHandler(spreadsheetsClient),
-			pubsub.StoreDBHandler(ticketRepo),
+			eventHandlers.StoreTicketHandler(),
+			eventHandlers.AppendToTrackerHandler(),
+			eventHandlers.IssueReceiptHandler(),
+			eventHandlers.CancelTicketHandler(),
+			eventHandlers.DeleteTicketHandler(),
 		},
 		watermillLogger,
 	)
