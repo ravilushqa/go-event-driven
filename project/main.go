@@ -22,6 +22,7 @@ import (
 	httpHandler "tickets/handler/http"
 	"tickets/handler/pubsub"
 	"tickets/pkg"
+	"tickets/repository/tickets"
 )
 
 var opts struct {
@@ -61,6 +62,8 @@ func main() {
 	}
 	defer dbconn.Close()
 
+	ticketRepo := tickets.NewPostgresRepository(dbconn)
+
 	err = db.InitializeDatabaseSchema(dbconn)
 	if err != nil {
 		panic(err)
@@ -92,6 +95,7 @@ func main() {
 			pubsub.IssueReceiptHandler(receiptsClient),
 			pubsub.AppendToTrackerHandler(spreadsheetsClient),
 			pubsub.CancelTicketHandler(spreadsheetsClient),
+			pubsub.StoreDBHandler(ticketRepo),
 		},
 		watermillLogger,
 	)
