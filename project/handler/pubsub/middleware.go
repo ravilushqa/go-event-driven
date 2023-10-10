@@ -7,11 +7,10 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
-	"github.com/lithammer/shortuuid/v3"
 	"github.com/sirupsen/logrus"
 )
 
-func useMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdapter) {
+func UseMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdapter) {
 	router.AddMiddleware(middleware.Recoverer)
 
 	router.AddMiddleware(middleware.Retry{
@@ -21,24 +20,6 @@ func useMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdap
 		Multiplier:      2,
 		Logger:          watermillLogger,
 	}.Middleware)
-
-	router.AddMiddleware(func(h message.HandlerFunc) message.HandlerFunc {
-		return func(msg *message.Message) (events []*message.Message, err error) {
-			ctx := msg.Context()
-
-			reqCorrelationID := msg.Metadata.Get("correlation_id")
-			if reqCorrelationID == "" {
-				reqCorrelationID = shortuuid.New()
-			}
-
-			ctx = log.ToContext(ctx, logrus.WithFields(logrus.Fields{"correlation_id": reqCorrelationID}))
-			ctx = log.ContextWithCorrelationID(ctx, reqCorrelationID)
-
-			msg.SetContext(ctx)
-
-			return h(msg)
-		}
-	})
 
 	router.AddMiddleware(func(next message.HandlerFunc) message.HandlerFunc {
 		return func(msg *message.Message) ([]*message.Message, error) {

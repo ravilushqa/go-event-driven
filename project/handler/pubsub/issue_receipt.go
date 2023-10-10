@@ -2,25 +2,29 @@ package pubsub
 
 import (
 	"context"
-	"fmt"
-
-	"tickets/entity"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
+	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+
+	"tickets/entity"
 )
 
-func (h Handler) IssueReceipt(ctx context.Context, event entity.TicketBookingConfirmed) error {
-	log.FromContext(ctx).Info("Issuing receipt")
+type ReceiptsService interface {
+	IssueReceipt(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error)
+}
 
-	request := entity.IssueReceiptRequest{
-		TicketID: event.TicketID,
-		Price:    event.Price,
-	}
+func IssueReceiptHandler(rs ReceiptsService) cqrs.EventHandler {
+	return cqrs.NewEventHandler(
+		"IssueReceiptHandler",
+		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
+			log.FromContext(ctx).Info("Issuing receipt")
+			request := entity.IssueReceiptRequest{
+				TicketID: event.TicketID,
+				Price:    event.Price,
+			}
 
-	_, err := h.receiptsService.IssueReceipt(ctx, request)
-	if err != nil {
-		return fmt.Errorf("failed to issue receipt: %w", err)
-	}
-
-	return nil
+			_, err := rs.IssueReceipt(ctx, request)
+			return err
+		},
+	)
 }

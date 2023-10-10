@@ -9,6 +9,8 @@ import (
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients"
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
+	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/jessevdk/go-flags"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -55,11 +57,34 @@ func main() {
 	redisClient := pkg.NewRedisClient(opts.RedisAddr)
 	defer redisClient.Close()
 
-	redisPublisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
+	publisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
 
-	watermillRouter := pubsub.NewWatermillRouter(receiptsClient, spreadsheetsClient, redisClient, watermillLogger)
+	watermillRouter, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
+	if err != nil {
+		panic(err)
+	}
+	pubsub.UseMiddlewares(watermillRouter, watermillLogger)
 
-	httpServer := httpHandler.NewServer(redisPublisher, spreadsheetsClient, opts.HTTPAddress)
+	eventBus, err := pkg.NewEventBus(publisher)
+	if err != nil {
+		panic(err)
+	}
+
+	err = pkg.RegisterEventHandlers(
+		redisClient,
+		watermillRouter,
+		[]cqrs.EventHandler{
+			pubsub.IssueReceiptHandler(receiptsClient),
+			pubsub.AppendToTrackerHandler(spreadsheetsClient),
+			pubsub.CancelTicketHandler(spreadsheetsClient),
+		},
+		watermillLogger,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	httpServer := httpHandler.NewServer(eventBus, spreadsheetsClient, opts.HTTPAddress)
 
 	g, ctx := errgroup.WithContext(ctx)
 

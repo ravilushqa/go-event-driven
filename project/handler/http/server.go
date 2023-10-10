@@ -7,22 +7,22 @@ import (
 
 	echoHTTP "github.com/ThreeDotsLabs/go-event-driven/common/http"
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
-	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 	"github.com/labstack/echo/v4"
 )
 
 type Server struct {
-	publisher             message.Publisher
+	eventbus              *cqrs.EventBus
 	spreadsheetsAPIClient SpreadsheetsAPI
 	e                     *echo.Echo
 	addr                  string
 }
 
-func NewServer(publisher message.Publisher, spreadsheetsAPIClient SpreadsheetsAPI, addr string) *Server {
+func NewServer(eventbus *cqrs.EventBus, spreadsheetsAPIClient SpreadsheetsAPI, addr string) *Server {
 	e := echoHTTP.NewEcho()
 
 	server := &Server{
-		publisher:             publisher,
+		eventbus:              eventbus,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
 		addr:                  addr,
 		e:                     e,
