@@ -21,6 +21,12 @@ type ticketStatusRequest struct {
 	BookingID     string       `json:"booking_id"`
 }
 
+type ticketResponse struct {
+	TicketID      string       `json:"ticket_id"`
+	CustomerEmail string       `json:"customer_email"`
+	Price         entity.Money `json:"price"`
+}
+
 func (s Server) PostTicketsStatus(c echo.Context) error {
 	var request ticketsStatusRequest
 	err := c.Bind(&request)
@@ -59,4 +65,25 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusOK)
+}
+
+func (s Server) GetTickets(c echo.Context) error {
+	tickets, err := s.repo.FindAll(c.Request().Context())
+	if err != nil {
+		return err
+	}
+
+	response := make([]ticketResponse, 0, len(tickets))
+	for _, ticket := range tickets {
+		response = append(response, ticketResponse{
+			TicketID:      ticket.TicketID,
+			CustomerEmail: ticket.CustomerEmail,
+			Price: entity.Money{
+				Amount:   ticket.PriceAmount,
+				Currency: ticket.PriceCurrency,
+			},
+		})
+	}
+
+	return c.JSON(http.StatusOK, response)
 }

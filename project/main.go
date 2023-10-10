@@ -106,7 +106,7 @@ func main() {
 		panic(err)
 	}
 
-	httpServer := httpHandler.NewServer(eventBus, spreadsheetsClient, opts.HTTPAddress)
+	httpServer := httpHandler.NewServer(eventBus, spreadsheetsClient, ticketRepo, opts.HTTPAddress)
 
 	g, ctx := errgroup.WithContext(ctx)
 

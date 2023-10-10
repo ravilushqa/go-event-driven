@@ -31,3 +31,12 @@ func (r *PostgresRepository) Delete(ctx context.Context, ticketID string) error 
 	`, ticketID)
 	return err
 }
+
+func (r *PostgresRepository) FindAll(ctx context.Context) ([]entity.Ticket, error) {
+	var tickets []entity.Ticket
+	err := r.db.SelectContext(ctx, &tickets, `
+		SELECT ticket_id, price_amount, price_currency, customer_email
+		FROM tickets
+	`)
+	return tickets, err
+}
