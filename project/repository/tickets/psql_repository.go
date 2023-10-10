@@ -20,6 +20,7 @@ func (r *PostgresRepository) Store(ctx context.Context, ticket entity.Ticket) er
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO tickets (ticket_id, price_amount, price_currency, customer_email)
 		VALUES (:ticket_id, :price_amount, :price_currency, :customer_email)
+		ON CONFLICT DO NOTHING -- ignore if already exists
 	`, ticket)
 	return err
 }
