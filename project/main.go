@@ -12,9 +12,12 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/jessevdk/go-flags"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
+	"tickets/db"
 	"tickets/gateway"
 	httpHandler "tickets/handler/http"
 	"tickets/handler/pubsub"
@@ -26,6 +29,7 @@ var opts struct {
 	HTTPAddress string `long:"http-addr" env:"HTTP_ADDR" default:":8080" description:"HTTP address to listen on"`
 	GatewayAddr string `long:"gateway-addr" env:"GATEWAY_ADDR" description:"Gateway address"`
 	RedisAddr   string `long:"redis-addr" env:"REDIS_ADDR" default:"localhost:8080" description:"Redis address"`
+	PostgresURL string `long:"postgres-url" env:"POSTGRES_URL" default:"postgres://user:password@localhost:5432/db?sslmode=disable" description:"Postgres URL"`
 }
 
 func main() {
@@ -47,6 +51,17 @@ func main() {
 		req.Header.Set("Correlation-ID", log.CorrelationIDFromContext(ctx))
 		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
+
+	dbconn, err := sqlx.Open("postgres", opts.PostgresURL)
+	if err != nil {
+		panic(err)
+	}
+	defer dbconn.Close()
+
+	err = db.InitializeDatabaseSchema(dbconn)
 	if err != nil {
 		panic(err)
 	}
