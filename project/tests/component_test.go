@@ -155,6 +155,7 @@ func startServer(t *testing.T, receiptsClient *mocks.MockReceiptsService, spread
 			eventHandlers.AppendToTrackerHandler(),
 			eventHandlers.IssueReceiptHandler(),
 			eventHandlers.CancelTicketHandler(),
+			eventHandlers.PrintTicketHandler(),
 		},
 		watermillLogger,
 	)

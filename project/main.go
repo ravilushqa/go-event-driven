@@ -71,6 +71,7 @@ func main() {
 
 	receiptsClient := gateway.NewReceiptsClient(c)
 	spreadsheetsClient := gateway.NewSpreadsheetsClient(c)
+	filesClient := gateway.NewFilesClient(c)
 	watermillLogger := log.NewWatermill(logger)
 	redisClient := pkg.NewRedisClient(opts.RedisAddr)
 	defer redisClient.Close()
@@ -88,7 +89,7 @@ func main() {
 		panic(err)
 	}
 
-	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo)
+	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo, filesClient)
 
 	err = pkg.RegisterEventHandlers(
 		redisClient,
@@ -99,6 +100,7 @@ func main() {
 			eventHandlers.IssueReceiptHandler(),
 			eventHandlers.CancelTicketHandler(),
 			eventHandlers.DeleteTicketHandler(),
+			eventHandlers.PrintTicketHandler(),
 		},
 		watermillLogger,
 	)
