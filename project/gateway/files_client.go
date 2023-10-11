@@ -22,26 +22,26 @@ func NewFilesClient(clients *clients.Clients) FilesClient {
 	}
 }
 
-func (c FilesClient) Put(ctx context.Context, ticket entity.TicketBookingConfirmed) error {
+func (c FilesClient) Put(ctx context.Context, ticket entity.TicketBookingConfirmed) (string, error) {
 	name := fmt.Sprintf("%s-ticket.html", ticket.TicketID)
 	body, err := json.Marshal(ticket)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := c.clients.Files.PutFilesFileIdContentWithTextBodyWithResponse(ctx, name, string(body))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if resp.StatusCode() == http.StatusConflict {
 		log.FromContext(ctx).Infof("file %s already exists", name)
-		return nil
+		return name, nil
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("unexpected status code for PUT files-api/files/%s/content: %d", name, resp.StatusCode())
+		return "", fmt.Errorf("unexpected status code for PUT files-api/files/%s/content: %d", name, resp.StatusCode())
 	}
 
-	return nil
+	return name, nil
 }

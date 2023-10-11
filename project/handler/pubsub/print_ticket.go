@@ -14,7 +14,18 @@ func (h Handler) PrintTicketHandler() cqrs.EventHandler {
 		"PrintTicketHandler",
 		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
 			log.FromContext(ctx).Info("Printing ticket")
-			return h.filesService.Put(ctx, *event)
+			name, err := h.filesService.Put(ctx, *event)
+			if err != nil {
+				return err
+			}
+
+			ticketPrinter := entity.TicketPrinted{
+				Header:   entity.NewEventHeader(),
+				TicketID: event.TicketID,
+				FileName: name,
+			}
+
+			return h.eventbus.Publish(ctx, ticketPrinter)
 		},
 	)
 }

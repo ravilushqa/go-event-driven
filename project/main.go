@@ -89,7 +89,7 @@ func main() {
 		panic(err)
 	}
 
-	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo, filesClient)
+	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo, filesClient, eventBus)
 
 	err = pkg.RegisterEventHandlers(
 		redisClient,

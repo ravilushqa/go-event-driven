@@ -3,6 +3,8 @@ package pubsub
 import (
 	"context"
 
+	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+
 	"tickets/entity"
 )
 
@@ -20,7 +22,7 @@ type TicketsRepository interface {
 }
 
 type FileService interface {
-	Put(ctx context.Context, ticket entity.TicketBookingConfirmed) error
+	Put(ctx context.Context, ticket entity.TicketBookingConfirmed) (string, error)
 }
 
 type Handler struct {
@@ -28,6 +30,7 @@ type Handler struct {
 	receiptsService     ReceiptsService
 	ticketsRepository   TicketsRepository
 	filesService        FileService
+	eventbus            *cqrs.EventBus
 }
 
 func NewHandler(
@@ -35,6 +38,7 @@ func NewHandler(
 	receiptsService ReceiptsService,
 	ticketsRepository TicketsRepository,
 	filesService FileService,
+	eventbus *cqrs.EventBus,
 ) Handler {
 	if spreadsheetsService == nil {
 		panic("missing spreadsheetsService")
@@ -48,11 +52,15 @@ func NewHandler(
 	if filesService == nil {
 		panic("missing filesService")
 	}
+	if eventbus == nil {
+		panic("missing eventbus")
+	}
 
 	return Handler{
 		spreadsheetsService: spreadsheetsService,
 		receiptsService:     receiptsService,
 		ticketsRepository:   ticketsRepository,
 		filesService:        filesService,
+		eventbus:            eventbus,
 	}
 }
