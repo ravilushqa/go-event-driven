@@ -3,7 +3,6 @@ package pkg
 import (
 	"fmt"
 
-	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
@@ -12,8 +11,7 @@ import (
 )
 
 func NewEventBus(pub message.Publisher) (*cqrs.EventBus, error) {
-	publisher := log.CorrelationPublisherDecorator{Publisher: pub}
-	return cqrs.NewEventBusWithConfig(publisher, cqrs.EventBusConfig{
+	return cqrs.NewEventBusWithConfig(pub, cqrs.EventBusConfig{
 		GeneratePublishTopic: func(params cqrs.GenerateEventPublishTopicParams) (string, error) {
 			return params.EventName, nil
 		},

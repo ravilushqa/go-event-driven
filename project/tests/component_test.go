@@ -5,9 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"testing"
 	"time"
 
@@ -33,7 +30,7 @@ var (
 
 func TestComponent(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/testcontainers/testcontainers-go.(*Reaper).Connect.func1"))
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dbconn, err := sqlx.Open("postgres", postgresURL)
 	if err != nil {
@@ -48,14 +45,6 @@ func TestComponent(t *testing.T) {
 	receiptsClient := &gateway.ReceiptsMock{IssuedReceipts: map[string]entity.IssueReceiptRequest{}}
 	filesClient := &gateway.FilesMock{}
 
-	done := make(chan struct{})
-	go func() {
-		<-done
-		e := syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
-		require.NoError(t, e)
-	}()
-
-	finished := make(chan struct{})
 	go func() {
 		svc := service.New(
 			dbconn,
@@ -66,12 +55,6 @@ func TestComponent(t *testing.T) {
 			httpAddress,
 		)
 		assert.NoError(t, svc.Run(ctx))
-		close(finished)
-	}()
-
-	defer func() {
-		close(done)
-		<-finished
 	}()
 
 	waitForHttpServer(t)
