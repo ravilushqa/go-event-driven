@@ -72,7 +72,7 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 }
 
 func (s Server) GetTickets(c echo.Context) error {
-	tickets, err := s.repo.FindAll(c.Request().Context())
+	tickets, err := s.ticketsRepo.FindAll(c.Request().Context())
 	if err != nil {
 		return err
 	}

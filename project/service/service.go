@@ -7,6 +7,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 
 	"tickets/db"
+	"tickets/db/shows"
 	"tickets/db/tickets"
 	"tickets/handler/http"
 	"tickets/handler/pubsub"
@@ -40,6 +41,7 @@ func New(
 	addr string,
 ) Service {
 	ticketsRepo := tickets.NewPostgresRepository(dbConn)
+	showsRepo := shows.NewPostgresRepository(dbConn)
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
 
@@ -83,10 +85,11 @@ func New(
 	}
 
 	httpServer := http.NewServer(
+		addr,
 		eventBus,
 		spreadsheetsService,
 		ticketsRepo,
-		addr,
+		showsRepo,
 	)
 
 	return Service{

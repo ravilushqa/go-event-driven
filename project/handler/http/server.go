@@ -21,21 +21,33 @@ type TicketsRepository interface {
 	FindAll(ctx context.Context) ([]entity.Ticket, error)
 }
 
-type Server struct {
-	eventbus              *cqrs.EventBus
-	spreadsheetsAPIClient SpreadsheetsAPI
-	repo                  TicketsRepository
-	e                     *echo.Echo
-	addr                  string
+type ShowsRepository interface {
+	Store(ctx context.Context, show entity.Show) error
 }
 
-func NewServer(eventbus *cqrs.EventBus, spreadsheetsAPIClient SpreadsheetsAPI, repo TicketsRepository, addr string) *Server {
+type Server struct {
+	addr                  string
+	eventbus              *cqrs.EventBus
+	spreadsheetsAPIClient SpreadsheetsAPI
+	ticketsRepo           TicketsRepository
+	showsRepo             ShowsRepository
+	e                     *echo.Echo
+}
+
+func NewServer(
+	addr string,
+	eventbus *cqrs.EventBus,
+	spreadsheetsAPIClient SpreadsheetsAPI,
+	ticketsRepo TicketsRepository,
+	showsRepo ShowsRepository,
+) *Server {
 	e := echoHTTP.NewEcho()
 
 	server := &Server{
 		eventbus:              eventbus,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
-		repo:                  repo,
+		ticketsRepo:           ticketsRepo,
+		showsRepo:             showsRepo,
 		addr:                  addr,
 		e:                     e,
 	}
@@ -43,9 +55,11 @@ func NewServer(eventbus *cqrs.EventBus, spreadsheetsAPIClient SpreadsheetsAPI, r
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
-	e.POST("/tickets-status", server.PostTicketsStatus)
 
 	e.GET("/tickets", server.GetTickets)
+	e.POST("/tickets-status", server.PostTicketsStatus)
+
+	e.POST("/shows", server.PostShows)
 
 	return server
 }
