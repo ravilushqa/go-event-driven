@@ -8,6 +8,7 @@ import (
 	echoHTTP "github.com/ThreeDotsLabs/go-event-driven/common/http"
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 
 	"tickets/entity"
@@ -32,7 +33,9 @@ type BookingsRepository interface {
 type Server struct {
 	addr                  string
 	e                     *echo.Echo
+	db                    *sqlx.DB
 	eventbus              *cqrs.EventBus
+	txEventbus            *cqrs.EventBus
 	spreadsheetsAPIClient SpreadsheetsAPI
 	ticketsRepo           TicketsRepository
 	showsRepo             ShowsRepository
@@ -41,7 +44,9 @@ type Server struct {
 
 func NewServer(
 	addr string,
+	db *sqlx.DB,
 	eventbus *cqrs.EventBus,
+	txEventbus *cqrs.EventBus,
 	spreadsheetsAPIClient SpreadsheetsAPI,
 	ticketsRepo TicketsRepository,
 	showsRepo ShowsRepository,
@@ -51,8 +56,10 @@ func NewServer(
 
 	server := &Server{
 		addr:                  addr,
+		db:                    db,
 		e:                     e,
 		eventbus:              eventbus,
+		txEventbus:            txEventbus,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
 		ticketsRepo:           ticketsRepo,
 		showsRepo:             showsRepo,

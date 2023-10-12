@@ -6,6 +6,7 @@ require (
 	github.com/ThreeDotsLabs/go-event-driven v0.0.11
 	github.com/ThreeDotsLabs/watermill v1.3.2
 	github.com/ThreeDotsLabs/watermill-redisstream v1.2.2
+	github.com/ThreeDotsLabs/watermill-sql/v2 v2.0.0
 	github.com/google/uuid v1.3.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
