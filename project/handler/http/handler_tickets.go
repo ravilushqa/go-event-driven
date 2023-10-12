@@ -27,6 +27,16 @@ type ticketResponse struct {
 	Price         entity.Money `json:"price"`
 }
 
+type postBookTicketsRequest struct {
+	ShowID          string `json:"show_id"`
+	NumberOfTickets int    `json:"number_of_tickets"`
+	CustomerEmail   string `json:"customer_email"`
+}
+
+type postBookTicketsResponse struct {
+	BookingID string `json:"booking_id"`
+}
+
 func (s Server) PostTicketsStatus(c echo.Context) error {
 	var request ticketsStatusRequest
 	err := c.Bind(&request)

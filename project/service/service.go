@@ -7,6 +7,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 
 	"tickets/db"
+	"tickets/db/bookings"
 	"tickets/db/shows"
 	"tickets/db/tickets"
 	"tickets/handler/http"
@@ -33,15 +34,16 @@ type Service struct {
 }
 
 func New(
-	dbConn *sqlx.DB,
+	db *sqlx.DB,
 	redisClient *redis.Client,
 	spreadsheetsService pubsub.SpreadsheetsAPI,
 	receiptsService pubsub.ReceiptsService,
 	fileService pubsub.FileService,
 	addr string,
 ) Service {
-	ticketsRepo := tickets.NewPostgresRepository(dbConn)
-	showsRepo := shows.NewPostgresRepository(dbConn)
+	ticketsRepo := tickets.NewPostgresRepository(db)
+	showsRepo := shows.NewPostgresRepository(db)
+	bookingsRepo := bookings.NewPostgresRepository(db)
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
 
@@ -90,10 +92,11 @@ func New(
 		spreadsheetsService,
 		ticketsRepo,
 		showsRepo,
+		bookingsRepo,
 	)
 
 	return Service{
-		dbConn,
+		db,
 		watermillRouter,
 		httpServer,
 	}

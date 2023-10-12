@@ -23,6 +23,15 @@ func InitializeDatabaseSchema(db *sqlx.DB) error {
 			title VARCHAR(255) NOT NULL,
 			venue VARCHAR(255) NOT NULL
 		);
+
+		CREATE TABLE IF NOT EXISTS bookings (
+			booking_id UUID PRIMARY KEY,
+			show_id UUID NOT NULL
+				REFERENCES shows(show_id) ON DELETE CASCADE,
+			customer_email VARCHAR(255) NOT NULL,
+			number_of_tickets INT NOT NULL
+		);
+						
 	`)
 	if err != nil {
 		return fmt.Errorf("could not initialize database schema: %w", err)

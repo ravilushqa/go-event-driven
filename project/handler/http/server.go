@@ -25,13 +25,18 @@ type ShowsRepository interface {
 	Store(ctx context.Context, show entity.Show) error
 }
 
+type BookingsRepository interface {
+	Store(ctx context.Context, booking entity.Booking) error
+}
+
 type Server struct {
 	addr                  string
+	e                     *echo.Echo
 	eventbus              *cqrs.EventBus
 	spreadsheetsAPIClient SpreadsheetsAPI
 	ticketsRepo           TicketsRepository
 	showsRepo             ShowsRepository
-	e                     *echo.Echo
+	bookingsRepo          BookingsRepository
 }
 
 func NewServer(
@@ -40,16 +45,18 @@ func NewServer(
 	spreadsheetsAPIClient SpreadsheetsAPI,
 	ticketsRepo TicketsRepository,
 	showsRepo ShowsRepository,
+	bookingsRepo BookingsRepository,
 ) *Server {
 	e := echoHTTP.NewEcho()
 
 	server := &Server{
+		addr:                  addr,
+		e:                     e,
 		eventbus:              eventbus,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
 		ticketsRepo:           ticketsRepo,
 		showsRepo:             showsRepo,
-		addr:                  addr,
-		e:                     e,
+		bookingsRepo:          bookingsRepo,
 	}
 
 	e.GET("/health", func(c echo.Context) error {
@@ -58,6 +65,7 @@ func NewServer(
 
 	e.GET("/tickets", server.GetTickets)
 	e.POST("/tickets-status", server.PostTicketsStatus)
+	e.POST("/book-tickets", server.PostBookTickets)
 
 	e.POST("/shows", server.PostShows)
 
