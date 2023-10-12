@@ -35,9 +35,13 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 	}
 
 	for _, ticket := range request.Tickets {
+		header := entity.NewEventHeader()
+		if idkey := c.Request().Header.Get("Idempotency-Key"); idkey != "" {
+			header = entity.NewEventHeaderWithIdempotencyKey(fmt.Sprintf("%s-%s", ticket.TicketID, idkey))
+		}
 		if ticket.Status == "confirmed" {
 			event := entity.TicketBookingConfirmed{
-				Header:        entity.NewEventHeader(),
+				Header:        header,
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price:         ticket.Price,
@@ -49,7 +53,7 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 			}
 		} else if ticket.Status == "canceled" {
 			event := entity.TicketBookingCanceled{
-				Header:        entity.NewEventHeader(),
+				Header:        header,
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price:         ticket.Price,

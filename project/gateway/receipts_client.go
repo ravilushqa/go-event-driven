@@ -28,6 +28,7 @@ func (c ReceiptsClient) IssueReceipt(ctx context.Context, request entity.IssueRe
 			MoneyAmount:   request.Price.Amount,
 			MoneyCurrency: request.Price.Currency,
 		},
+		IdempotencyKey: &request.IdempotencyKey,
 	}
 
 	resp, err := c.clients.Receipts.PutReceiptsWithResponse(ctx, body)

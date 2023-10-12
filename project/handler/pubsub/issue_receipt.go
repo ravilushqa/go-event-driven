@@ -15,8 +15,9 @@ func (h Handler) IssueReceiptHandler() cqrs.EventHandler {
 		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
 			log.FromContext(ctx).Info("Issuing receipt")
 			request := entity.IssueReceiptRequest{
-				TicketID: event.TicketID,
-				Price:    event.Price,
+				TicketID:       event.TicketID,
+				Price:          event.Price,
+				IdempotencyKey: event.Header.IdempotencyKey,
 			}
 
 			_, err := h.receiptsService.IssueReceipt(ctx, request)

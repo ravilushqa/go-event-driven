@@ -3,8 +3,9 @@ package entity
 import "time"
 
 type IssueReceiptRequest struct {
-	TicketID string
-	Price    Money
+	TicketID       string
+	Price          Money
+	IdempotencyKey string
 }
 
 type IssueReceiptResponse struct {
