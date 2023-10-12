@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
-	"github.com/ThreeDotsLabs/watermill/components/forwarder"
 
 	"tickets/db"
 	"tickets/db/bookings"
@@ -14,6 +13,7 @@ import (
 	"tickets/handler/http"
 	"tickets/handler/pubsub"
 	"tickets/pkg"
+	"tickets/pkg/outbox"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -28,13 +28,10 @@ func init() {
 	log.Init(logrus.InfoLevel)
 }
 
-const outboxTopic = "events_to_forward"
-
 type Service struct {
 	db              *sqlx.DB
 	watermillRouter *message.Router
 	httpServer      *http.Server
-	fwd             *forwarder.Forwarder
 }
 
 func New(
@@ -54,12 +51,6 @@ func New(
 	var redisPublisher message.Publisher
 	redisPublisher = pkg.NewRedisPublisher(redisClient, watermillLogger)
 	redisPublisher = log.CorrelationPublisherDecorator{Publisher: redisPublisher}
-	psqlSubscriber, err := pkg.NewPsqlSubscriber(db, watermillLogger)
-
-	fwd, err := forwarder.NewForwarder(psqlSubscriber, redisPublisher, watermillLogger, forwarder.Config{ForwarderTopic: outboxTopic})
-	if err != nil {
-		panic(err)
-	}
 
 	eventBus, err := pkg.NewEventBus(redisPublisher)
 	if err != nil {
@@ -98,9 +89,11 @@ func New(
 		panic(err)
 	}
 
+	postgresSubscriber := outbox.NewPostgresSubscriber(db.DB, watermillLogger)
+	outbox.AddForwarderHandler(postgresSubscriber, redisPublisher, watermillRouter, watermillLogger)
+
 	httpServer := http.NewServer(
 		addr,
-		db,
 		eventBus,
 		txEventBus,
 		spreadsheetsService,
@@ -113,7 +106,6 @@ func New(
 		db,
 		watermillRouter,
 		httpServer,
-		fwd,
 	}
 }
 
@@ -127,14 +119,10 @@ func (s Service) Run(ctx context.Context) error {
 	g.Go(func() error {
 		return s.watermillRouter.Run(ctx)
 	})
-	g.Go(func() error {
-		return s.fwd.Run(ctx)
-	})
 
 	g.Go(func() error {
 		// we don't want to start HTTP sferver before Watermill router (so service won't be healthy before it's ready)
 		<-s.watermillRouter.Running()
-		<-s.fwd.Running()
 
 		err := s.httpServer.Run(ctx)
 		if err != nil {
