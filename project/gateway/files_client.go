@@ -2,14 +2,11 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients"
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
-
-	"tickets/entity"
 )
 
 type FilesClient struct {
@@ -22,26 +19,35 @@ func NewFilesClient(clients *clients.Clients) FilesClient {
 	}
 }
 
-func (c FilesClient) Put(ctx context.Context, ticket entity.TicketBookingConfirmed) (string, error) {
-	name := fmt.Sprintf("%s-ticket.html", ticket.TicketID)
-	body, err := json.Marshal(ticket)
+func (c FilesClient) UploadFile(ctx context.Context, fileID string, fileContent string) error {
+	resp, err := c.clients.Files.PutFilesFileIdContentWithTextBodyWithResponse(ctx, fileID, fileContent)
 	if err != nil {
-		return "", err
-	}
-
-	resp, err := c.clients.Files.PutFilesFileIdContentWithTextBodyWithResponse(ctx, name, string(body))
-	if err != nil {
-		return "", err
+		return fmt.Errorf("failed to upload file %s: %w", fileID, err)
 	}
 
 	if resp.StatusCode() == http.StatusConflict {
-		log.FromContext(ctx).Infof("file %s already exists", name)
-		return name, nil
+		log.FromContext(ctx).Infof("file %s already exists", fileID)
+		return nil
+	}
+	if resp.StatusCode() != http.StatusCreated {
+		return fmt.Errorf("unexpected status code while uploading file %s: %d", fileID, resp.StatusCode())
 	}
 
+	return nil
+}
+
+func (c FilesClient) DownloadFile(ctx context.Context, fileID string) (string, error) {
+	resp, err := c.clients.Files.GetFilesFileIdContentWithResponse(ctx, fileID)
+	if err != nil {
+		return "", fmt.Errorf("get file content: %w", err)
+	}
+
+	if resp.StatusCode() == http.StatusNotFound {
+		return "", nil
+	}
 	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code for PUT files-api/files/%s/content: %d", name, resp.StatusCode())
+		return "", fmt.Errorf("unexpected status code while getting file %s: %d", fileID, resp.StatusCode())
 	}
 
-	return name, nil
+	return string(resp.Body), nil
 }
