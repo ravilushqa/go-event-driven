@@ -1,4 +1,4 @@
-package tests_test
+package tests
 
 import (
 	"bytes"
@@ -11,41 +11,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ThreeDotsLabs/go-event-driven/common/log"
-	"github.com/ThreeDotsLabs/watermill/components/cqrs"
-	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/lithammer/shortuuid/v3"
-	redis2 "github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"golang.org/x/sync/errgroup"
 
-	"tickets/db"
 	"tickets/entity"
-	httpHandler "tickets/handler/http"
-	"tickets/handler/pubsub"
 	"tickets/mocks"
 	"tickets/pkg"
-	"tickets/repository/tickets"
+	"tickets/service"
 )
 
 var (
-	httpAddress  = ":8080"
-	redisAddress = "localhost:6379"
-	postgresURL  = "postgres://user:password@localhost:5432/db?sslmode=disable"
+	httpAddress = ":8080"
 )
 
 func TestComponent(t *testing.T) {
-	if os.Getenv("REDIS_ADDR") != "" {
-		redisAddress = os.Getenv("REDIS_ADDR")
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/testcontainers/testcontainers-go.(*Reaper).Connect.func1"))
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	dbconn, err := sqlx.Open("postgres", postgresURL)
+	if err != nil {
+		panic(err)
 	}
-	if os.Getenv("POSTGRES_URL") != "" {
-		postgresURL = os.Getenv("POSTGRES_URL")
-	}
-	defer goleak.VerifyNone(t)
+	defer dbconn.Close()
+
+	redisClient := pkg.NewRedisClient(redisURL)
+	defer redisClient.Close()
+
 	receiptsClient := mocks.NewMockReceiptsService(t)
 	receiptsClient.IssueReceiptFunc = func(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error) {
 		return entity.IssueReceiptResponse{
@@ -58,6 +55,9 @@ func TestComponent(t *testing.T) {
 		return nil
 	}
 
+	filesClient := mocks.NewFileService(t)
+	filesClient.On("Put", mock.Anything, mock.Anything).Return("file-id", nil)
+
 	done := make(chan struct{})
 	go func() {
 		<-done
@@ -67,8 +67,15 @@ func TestComponent(t *testing.T) {
 
 	finished := make(chan struct{})
 	go func() {
-		err := startServer(t, receiptsClient, spreadsheetsClient)
-		assert.NoError(t, err)
+		svc := service.New(
+			dbconn,
+			redisClient,
+			spreadsheetsClient,
+			receiptsClient,
+			filesClient,
+			httpAddress,
+		)
+		assert.NoError(t, svc.Run(ctx))
 		close(finished)
 	}()
 
@@ -80,7 +87,7 @@ func TestComponent(t *testing.T) {
 	waitForHttpServer(t)
 
 	ticket := TicketStatus{
-		TicketID:  "ticket-1",
+		TicketID:  uuid.NewString(),
 		Status:    "confirmed",
 		Price:     Money{Amount: "100", Currency: "USD"},
 		Email:     "test@test.io",
@@ -106,84 +113,7 @@ func TestComponent(t *testing.T) {
 	}})
 
 	assertRowToSheetAdded(t, spreadsheetsClient, ticket, "tickets-to-refund")
-}
-
-func startServer(t *testing.T, receiptsClient *mocks.MockReceiptsService, spreadsheetsClient *mocks.MockSpreadsheetsAPI) error {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-	log.Init(logrus.InfoLevel)
-
-	redisClient := pkg.NewRedisClient(redisAddress)
-	defer func(redisClient *redis2.Client) {
-		err := redisClient.Close()
-		assert.NoError(t, err)
-	}(redisClient)
-
-	dbconn, err := sqlx.Open("postgres", postgresURL)
-	if err != nil {
-		panic(err)
-	}
-	defer dbconn.Close()
-
-	err = db.InitializeDatabaseSchema(dbconn)
-	assert.NoError(t, err)
-
-	ticketRepo := tickets.NewPostgresRepository(dbconn)
-
-	watermillLogger := log.NewWatermill(logrus.NewEntry(logrus.StandardLogger()))
-
-	publisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
-
-	watermillRouter, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
-	if err != nil {
-		panic(err)
-	}
-	pubsub.UseMiddlewares(watermillRouter, watermillLogger)
-
-	eventBus, err := pkg.NewEventBus(publisher)
-	if err != nil {
-		panic(err)
-	}
-
-	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo)
-
-	err = pkg.RegisterEventHandlers(
-		redisClient,
-		watermillRouter,
-		[]cqrs.EventHandler{
-			eventHandlers.StoreTicketHandler(),
-			eventHandlers.AppendToTrackerHandler(),
-			eventHandlers.IssueReceiptHandler(),
-			eventHandlers.CancelTicketHandler(),
-			eventHandlers.PrintTicketHandler(),
-		},
-		watermillLogger,
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	httpServer := httpHandler.NewServer(eventBus, spreadsheetsClient, httpAddress)
-
-	g, ctx := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return watermillRouter.Run(ctx)
-	})
-
-	g.Go(func() error {
-		// we don't want to start HTTP server before Watermill router (so service won't be healthy before it's ready)
-		<-watermillRouter.Running()
-
-		err := httpServer.Run(ctx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	return g.Wait()
+	assertReceiptForTicketIssued(t, receiptsClient, ticket)
 }
 
 func waitForHttpServer(t *testing.T) {

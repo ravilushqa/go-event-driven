@@ -9,27 +9,21 @@ import (
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/clients"
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
-	"github.com/ThreeDotsLabs/watermill/components/cqrs"
-	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/jessevdk/go-flags"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 
-	"tickets/db"
 	"tickets/gateway"
-	httpHandler "tickets/handler/http"
-	"tickets/handler/pubsub"
 	"tickets/pkg"
-	"tickets/repository/tickets"
+	"tickets/service"
 )
 
 var opts struct {
 	Mock        bool   `long:"mock" env:"MOCK" description:"Mock external services"`
 	HTTPAddress string `long:"http-addr" env:"HTTP_ADDR" default:":8080" description:"HTTP address to listen on"`
 	GatewayAddr string `long:"gateway-addr" env:"GATEWAY_ADDR" description:"Gateway address"`
-	RedisAddr   string `long:"redis-addr" env:"REDIS_ADDR" default:"localhost:8080" description:"Redis address"`
+	RedisAddr   string `long:"redis-addr" env:"REDIS_ADDR" default:"localhost:6379" description:"Redis address"`
 	PostgresURL string `long:"postgres-url" env:"POSTGRES_URL" default:"postgres://user:password@localhost:5432/db?sslmode=disable" description:"Postgres URL"`
 }
 
@@ -62,74 +56,14 @@ func main() {
 	}
 	defer dbconn.Close()
 
-	ticketRepo := tickets.NewPostgresRepository(dbconn)
-
-	err = db.InitializeDatabaseSchema(dbconn)
-	if err != nil {
-		panic(err)
-	}
-
 	receiptsClient := gateway.NewReceiptsClient(c)
 	spreadsheetsClient := gateway.NewSpreadsheetsClient(c)
 	filesClient := gateway.NewFilesClient(c)
-	watermillLogger := log.NewWatermill(logger)
 	redisClient := pkg.NewRedisClient(opts.RedisAddr)
 	defer redisClient.Close()
 
-	publisher := pkg.NewRedisPublisher(redisClient, watermillLogger)
-
-	watermillRouter, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
+	err = service.New(dbconn, redisClient, spreadsheetsClient, receiptsClient, filesClient, opts.HTTPAddress).Run(ctx)
 	if err != nil {
-		panic(err)
-	}
-	pubsub.UseMiddlewares(watermillRouter, watermillLogger)
-
-	eventBus, err := pkg.NewEventBus(publisher)
-	if err != nil {
-		panic(err)
-	}
-
-	eventHandlers := pubsub.NewHandler(spreadsheetsClient, receiptsClient, ticketRepo, filesClient, eventBus)
-
-	err = pkg.RegisterEventHandlers(
-		redisClient,
-		watermillRouter,
-		[]cqrs.EventHandler{
-			eventHandlers.StoreTicketHandler(),
-			eventHandlers.AppendToTrackerHandler(),
-			eventHandlers.IssueReceiptHandler(),
-			eventHandlers.CancelTicketHandler(),
-			eventHandlers.DeleteTicketHandler(),
-			eventHandlers.PrintTicketHandler(),
-		},
-		watermillLogger,
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	httpServer := httpHandler.NewServer(eventBus, spreadsheetsClient, ticketRepo, opts.HTTPAddress)
-
-	g, ctx := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return watermillRouter.Run(ctx)
-	})
-
-	g.Go(func() error {
-		// we don't want to start HTTP server before Watermill router (so service won't be healthy before it's ready)
-		<-watermillRouter.Running()
-
-		err := httpServer.Run(ctx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	err = g.Wait()
-	if err != nil {
-		log.FromContext(ctx).WithError(err).Error("error while running the service")
+		logger.WithError(err).Error("service failed")
 	}
 }
