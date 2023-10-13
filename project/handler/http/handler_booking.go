@@ -1,11 +1,14 @@
 package http
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
+	"tickets/db/bookings"
 	"tickets/entity"
 )
 
@@ -23,9 +26,18 @@ func (s Server) PostBookTickets(c echo.Context) error {
 		CustomerEmail:   request.CustomerEmail,
 	}
 
-	err = s.bookingsRepo.Store(c.Request().Context(), booking)
+	show, err := s.showsRepo.Get(c.Request().Context(), request.ShowID)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get show: %w", err)
+	}
+
+	err = s.bookingsRepo.Store(c.Request().Context(), booking, show.NumberOfTickets)
+	if err != nil {
+		if errors.Is(err, bookings.ErrNoAvailableTickets) {
+			return echo.NewHTTPError(http.StatusBadRequest, "not enough seats available")
+		}
+
+		return fmt.Errorf("could not store booking: %w", err)
 	}
 
 	return c.JSON(http.StatusCreated, postBookTicketsResponse{

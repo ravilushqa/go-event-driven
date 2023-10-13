@@ -23,10 +23,11 @@ type TicketsRepository interface {
 
 type ShowsRepository interface {
 	Store(ctx context.Context, show entity.Show) error
+	Get(ctx context.Context, showID string) (entity.Show, error)
 }
 
 type BookingsRepository interface {
-	Store(ctx context.Context, booking entity.Booking) error
+	Store(ctx context.Context, booking entity.Booking, showTicketsCount int) error
 }
 
 type Server struct {

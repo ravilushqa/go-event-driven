@@ -6,13 +6,10 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"tickets/db"
 )
@@ -57,7 +54,7 @@ func setup() {
 	// Postgres
 	if postgresURL == "" {
 		fmt.Printf("\033[1;33m%s\033[0m", "> Setup postgres container\n")
-		postgresContainer, connStr := startPostgresContainer()
+		postgresContainer, connStr := db.StartPostgresContainer()
 		postgresURL = connStr
 		startedContainers = append(startedContainers, postgresContainer)
 	}
@@ -102,29 +99,4 @@ func startRedisContainer() (testcontainers.Container, string) {
 	}
 
 	return redisContainer, strings.Replace(uri, "redis://", "", 1)
-}
-
-func startPostgresContainer() (testcontainers.Container, string) {
-	ctx := context.Background()
-	dbName := "db"
-	dbUser := "user"
-	dbPassword := "password"
-
-	postgresContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("docker.io/postgres:15.2-alpine"),
-		postgres.WithDatabase(dbName),
-		postgres.WithUsername(dbUser),
-		postgres.WithPassword(dbPassword),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(5*time.Second)),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	connStr, err := postgresContainer.ConnectionString(ctx, "sslmode=disable", "application_name=test")
-
-	return postgresContainer, connStr
 }

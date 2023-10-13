@@ -2,6 +2,7 @@ package bookings
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -12,6 +13,8 @@ import (
 	"tickets/pkg/outbox"
 )
 
+var ErrNoAvailableTickets = errors.New("no available tickets")
+
 type PostgresRepository struct {
 	db *sqlx.DB
 }
@@ -20,8 +23,12 @@ func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking) error {
-	tx, err := r.db.Beginx()
+// Store stores booking in database and publishes event to event bus.
+// It uses transaction to ensure that booking is stored only if there are available tickets.
+func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, showTicketsCount int) error {
+	tx, err := r.db.BeginTxx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+	})
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -34,6 +41,23 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking) 
 		}
 		err = tx.Commit()
 	}()
+
+	availableTickets, err := r.getAvailableTickets(ctx, tx, booking.ShowID, showTicketsCount)
+	if err != nil {
+		return fmt.Errorf("could not get available tickets: %w", err)
+	}
+	fmt.Println(
+		"[DEBUG]", booking.ShowID,
+		"availableTickets", availableTickets,
+		"booking.NumberOfTickets", booking.NumberOfTickets,
+		"showTicketsCount", showTicketsCount,
+		"isError", availableTickets < booking.NumberOfTickets,
+	)
+
+	if availableTickets < booking.NumberOfTickets {
+		//return echo.NewHTTPError(http.StatusBadRequest, "not enough seats available")
+		return ErrNoAvailableTickets
+	}
 
 	_, err = tx.NamedExecContext(ctx, `
 		INSERT INTO 
@@ -66,4 +90,26 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking) 
 	}
 
 	return nil
+}
+
+func (r *PostgresRepository) getAvailableTickets(ctx context.Context, tx *sqlx.Tx, showID string, showTicketsCount int) (int, error) {
+	var bookedTicketsCount int
+	err := tx.GetContext(ctx, &bookedTicketsCount, `
+		SELECT 
+		    COALESCE(SUM(number_of_tickets), 0) 
+		FROM 
+		    bookings 
+		WHERE 
+		    show_id = $1
+		GROUP BY 
+		    show_id
+		`, showID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return showTicketsCount, nil
+		}
+		return 0, fmt.Errorf("could not get booked tickets count: %w", err)
+	}
+
+	return showTicketsCount - bookedTicketsCount, nil
 }
