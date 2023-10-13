@@ -24,3 +24,14 @@ func (r *PostgresRepository) Store(ctx context.Context, show entity.Show) error 
 	`, show)
 	return err
 }
+
+func (r *PostgresRepository) Get(ctx context.Context, showID string) (entity.Show, error) {
+	var show entity.Show
+	err := r.db.GetContext(ctx, &show, `
+		SELECT show_id, dead_nation_id, number_of_tickets, start_time, title, venue
+		FROM shows
+		WHERE show_id = $1
+	`, showID)
+
+	return show, err
+}

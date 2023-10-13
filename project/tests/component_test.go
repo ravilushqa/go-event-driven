@@ -44,15 +44,17 @@ func TestComponent(t *testing.T) {
 	spreadsheetsClient := &gateway.SpreadsheetsMock{}
 	receiptsClient := &gateway.ReceiptsMock{IssuedReceipts: map[string]entity.IssueReceiptRequest{}}
 	filesClient := &gateway.FilesMock{}
+	deadNationClient := &gateway.DeadNationMock{}
 
 	go func() {
 		svc := service.New(
+			httpAddress,
 			dbconn,
 			redisClient,
 			spreadsheetsClient,
 			receiptsClient,
 			filesClient,
-			httpAddress,
+			deadNationClient,
 		)
 		assert.NoError(t, svc.Run(ctx))
 	}()

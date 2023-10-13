@@ -35,12 +35,13 @@ type Service struct {
 }
 
 func New(
+	addr string,
 	db *sqlx.DB,
 	redisClient *redis.Client,
 	spreadsheetsService pubsub.SpreadsheetsAPI,
 	receiptsService pubsub.ReceiptsService,
 	fileService pubsub.FileService,
-	addr string,
+	deadNationService pubsub.DeadNationService,
 ) Service {
 	ticketsRepo := tickets.NewPostgresRepository(db)
 	showsRepo := shows.NewPostgresRepository(db)
@@ -60,11 +61,13 @@ func New(
 	txEventBus, err := pkg.NewEventBus(redisPublisher)
 
 	eventsHandler := pubsub.NewHandler(
+		eventBus,
 		spreadsheetsService,
 		receiptsService,
-		ticketsRepo,
 		fileService,
-		eventBus,
+		deadNationService,
+		ticketsRepo,
+		showsRepo,
 	)
 	watermillRouter, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
 	if err != nil {
@@ -82,6 +85,7 @@ func New(
 			eventsHandler.CancelTicketHandler(),
 			eventsHandler.DeleteTicketHandler(),
 			eventsHandler.PrintTicketHandler(),
+			eventsHandler.PostTicketBookingHandler(),
 		},
 		watermillLogger,
 	)
