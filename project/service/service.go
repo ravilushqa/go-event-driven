@@ -58,8 +58,6 @@ func New(
 		panic(fmt.Errorf("failed to create event bus: %w", err))
 	}
 
-	txEventBus, err := pkg.NewEventBus(redisPublisher)
-
 	eventsHandler := pubsub.NewHandler(
 		eventBus,
 		spreadsheetsService,
@@ -99,7 +97,6 @@ func New(
 	httpServer := http.NewServer(
 		addr,
 		eventBus,
-		txEventBus,
 		spreadsheetsService,
 		ticketsRepo,
 		showsRepo,

@@ -46,16 +46,8 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, 
 	if err != nil {
 		return fmt.Errorf("could not get available tickets: %w", err)
 	}
-	fmt.Println(
-		"[DEBUG]", booking.ShowID,
-		"availableTickets", availableTickets,
-		"booking.NumberOfTickets", booking.NumberOfTickets,
-		"showTicketsCount", showTicketsCount,
-		"isError", availableTickets < booking.NumberOfTickets,
-	)
 
 	if availableTickets < booking.NumberOfTickets {
-		//return echo.NewHTTPError(http.StatusBadRequest, "not enough seats available")
 		return ErrNoAvailableTickets
 	}
 

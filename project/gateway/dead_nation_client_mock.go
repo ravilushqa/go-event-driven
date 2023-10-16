@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -27,8 +28,14 @@ func (c *DeadNationMock) PostTicketBooking(_ context.Context, BookingID, Custome
 		c.bookings = make(map[uuid.UUID]BookingData)
 	}
 
-	bookingUUID := uuid.NewSHA1(uuid.Nil, []byte(BookingID))
-	eventUUID := uuid.NewSHA1(uuid.Nil, []byte(EventID))
+	bookingUUID, err := uuid.Parse(BookingID)
+	if err != nil {
+		return fmt.Errorf("could not parse booking uuid: %w", err)
+	}
+	eventUUID, err := uuid.Parse(EventID)
+	if err != nil {
+		return fmt.Errorf("could not parse event uuid: %w", err)
+	}
 
 	bData := BookingData{
 		BookingID:       bookingUUID,

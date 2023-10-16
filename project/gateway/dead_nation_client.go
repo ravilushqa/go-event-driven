@@ -30,17 +30,18 @@ func (c DeadNationClient) PostTicketBooking(ctx context.Context, BookingID, Cust
 	if err != nil {
 		return fmt.Errorf("failed to parse event ID: %w", err)
 	}
-	resp, err := c.clients.DeadNation.PostTicketBookingWithResponse(ctx, dead_nation.PostTicketBookingJSONRequestBody{
+	resp, err := c.clients.DeadNation.PostTicketBookingWithResponse(ctx, dead_nation.PostTicketBookingRequest{
 		BookingId:       bookingID,
 		CustomerAddress: CustomerAddress,
 		EventId:         eventID,
 		NumberOfTickets: NumberOfTickets,
-	})
+	},
+	)
 	if err != nil {
 		return fmt.Errorf("failed to post ticket booking: %w", err)
 	}
 
-	if resp.StatusCode() != http.StatusCreated {
+	if resp.StatusCode() != http.StatusOK {
 		return fmt.Errorf("unexpected status code while posting ticket booking: %d", resp.StatusCode())
 	}
 

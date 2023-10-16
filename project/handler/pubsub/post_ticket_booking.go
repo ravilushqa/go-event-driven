@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
@@ -20,7 +21,12 @@ func (h Handler) PostTicketBookingHandler() cqrs.EventHandler {
 				return err
 			}
 
-			return h.deadNationService.PostTicketBooking(ctx, event.BookingID, event.CustomerEmail, show.DeadNationID, event.NumberOfTickets)
+			err = h.deadNationService.PostTicketBooking(ctx, event.BookingID, event.CustomerEmail, show.DeadNationID, event.NumberOfTickets)
+			if err != nil {
+				return fmt.Errorf("failed to post ticket booking to Dead Nation: %w", err)
+			}
+
+			return nil
 		},
 	)
 }
