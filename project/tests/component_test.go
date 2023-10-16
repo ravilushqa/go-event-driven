@@ -29,7 +29,14 @@ var (
 )
 
 func TestComponent(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/testcontainers/testcontainers-go.(*Reaper).Connect.func1"))
+	defer goleak.VerifyNone(t,
+		// used for testcontainers
+		goleak.IgnoreTopFunction("github.com/testcontainers/testcontainers-go.(*Reaper).Connect.func1"),
+		// used for test http queries
+		goleak.IgnoreTopFunction("net/http.(*persistConn).readLoop"),
+		// used for test http queries
+		goleak.IgnoreTopFunction("net/http.(*persistConn).writeLoop"),
+	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dbconn, err := sqlx.Open("postgres", postgresURL)
@@ -90,6 +97,29 @@ func TestComponent(t *testing.T) {
 	}}, uuid.NewString())
 
 	assertRowToSheetAdded(t, spreadsheetsClient, ticket, "tickets-to-refund")
+	showID := sendPostShow(t, postShowsRequest{
+		DeadNationID:    uuid.NewString(),
+		NumberOfTickets: 5,
+		StartTime:       time.Now().Add(time.Hour),
+		Title:           "test",
+		Venue:           "test",
+	})
+
+	bookResp := bookTickets(t, postBookTicketsRequest{
+		ShowID:          showID,
+		NumberOfTickets: 3,
+		CustomerEmail:   "test@test.io",
+	})
+	assert.Equal(t, http.StatusCreated, bookResp.StatusCode)
+
+	// overbooking
+	bookResp = bookTickets(t, postBookTicketsRequest{
+		ShowID:          showID,
+		NumberOfTickets: 3,
+		CustomerEmail:   "test@test.io",
+	})
+	assert.Equal(t, http.StatusBadRequest, bookResp.StatusCode)
+
 }
 
 func assertTicketStoredInRepository(t *testing.T, db *sqlx.DB, ticket TicketStatus) {
@@ -199,6 +229,24 @@ type Money struct {
 	Currency string `json:"currency"`
 }
 
+type postShowsRequest struct {
+	DeadNationID    string    `json:"dead_nation_id"`
+	NumberOfTickets int       `json:"number_of_tickets"`
+	StartTime       time.Time `json:"start_time"`
+	Title           string    `json:"title"`
+	Venue           string    `json:"venue"`
+}
+
+type postShowsResponse struct {
+	ShowID string `json:"show_id"`
+}
+
+type postBookTicketsRequest struct {
+	ShowID          string `json:"show_id"`
+	NumberOfTickets int    `json:"number_of_tickets"`
+	CustomerEmail   string `json:"customer_email"`
+}
+
 func sendTicketsStatus(t *testing.T, req TicketsStatusRequest, idempotencyKey string) {
 	t.Helper()
 
@@ -226,6 +274,57 @@ func sendTicketsStatus(t *testing.T, req TicketsStatusRequest, idempotencyKey st
 	resp, err := http.DefaultClient.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func sendPostShow(t *testing.T, request postShowsRequest) string {
+	t.Helper()
+
+	correlationID := shortuuid.New()
+
+	payload, err := json.Marshal(request)
+	require.NoError(t, err)
+	client := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+		},
+	}
+
+	httpReq, err := http.NewRequest(
+		http.MethodPost,
+		"http://localhost:8080/shows",
+		bytes.NewBuffer(payload),
+	)
+	httpReq.Header.Set("Correlation-ID", correlationID)
+	httpReq.Header.Set("Content-Type", "application/json")
+	require.NoError(t, err)
+
+	resp, err := client.Do(httpReq)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	var response postShowsResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	require.NoError(t, err)
+	return response.ShowID
+}
+
+func bookTickets(t *testing.T, request postBookTicketsRequest) *http.Response {
+	t.Helper()
+
+	payload, err := json.Marshal(request)
+	require.NoError(t, err)
+
+	httpReq, err := http.NewRequest(
+		http.MethodPost,
+		"http://localhost:8080/book-tickets",
+		bytes.NewBuffer(payload),
+	)
+	httpReq.Header.Set("Content-Type", "application/json")
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	require.NoError(t, err)
+	return resp
 }
 
 func waitForHttpServer(t *testing.T) {

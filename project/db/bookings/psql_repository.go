@@ -26,9 +26,7 @@ func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
 // Store stores booking in database and publishes event to event bus.
 // It uses transaction to ensure that booking is stored only if there are available tickets.
 func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, showTicketsCount int) error {
-	tx, err := r.db.BeginTxx(ctx, &sql.TxOptions{
-		Isolation: sql.LevelSerializable,
-	})
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
