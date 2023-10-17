@@ -34,6 +34,7 @@ type Server struct {
 	addr                  string
 	e                     *echo.Echo
 	eventbus              *cqrs.EventBus
+	commandBus            *cqrs.CommandBus
 	spreadsheetsAPIClient SpreadsheetsAPI
 	ticketsRepo           TicketsRepository
 	showsRepo             ShowsRepository
@@ -43,6 +44,7 @@ type Server struct {
 func NewServer(
 	addr string,
 	eventbus *cqrs.EventBus,
+	commandBus *cqrs.CommandBus,
 	spreadsheetsAPIClient SpreadsheetsAPI,
 	ticketsRepo TicketsRepository,
 	showsRepo ShowsRepository,
@@ -54,6 +56,7 @@ func NewServer(
 		addr:                  addr,
 		e:                     e,
 		eventbus:              eventbus,
+		commandBus:            commandBus,
 		spreadsheetsAPIClient: spreadsheetsAPIClient,
 		ticketsRepo:           ticketsRepo,
 		showsRepo:             showsRepo,
@@ -66,6 +69,7 @@ func NewServer(
 
 	e.GET("/tickets", server.GetTickets)
 	e.POST("/tickets-status", server.PostTicketsStatus)
+	e.PUT("/ticket-refund/:ticket_id", server.TicketRefund)
 	e.POST("/book-tickets", server.PostBookTickets)
 
 	e.POST("/shows", server.PostShows)

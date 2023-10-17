@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"tickets/entity"
 
 	"github.com/labstack/echo/v4"
@@ -101,4 +103,18 @@ func (s Server) GetTickets(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, response)
+}
+
+func (s Server) TicketRefund(c echo.Context) error {
+	ticketID := c.Param("ticket_id")
+
+	err := s.commandBus.Send(c.Request().Context(), &entity.RefundTicket{
+		Header:   entity.NewEventHeaderWithIdempotencyKey(uuid.NewString()),
+		TicketID: ticketID,
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.NoContent(http.StatusAccepted)
 }

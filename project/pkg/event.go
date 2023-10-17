@@ -21,6 +21,17 @@ func NewEventBus(pub message.Publisher) (*cqrs.EventBus, error) {
 	})
 }
 
+func NewCommandBus(pub message.Publisher) (*cqrs.CommandBus, error) {
+	return cqrs.NewCommandBusWithConfig(pub, cqrs.CommandBusConfig{
+		GeneratePublishTopic: func(params cqrs.CommandBusGeneratePublishTopicParams) (string, error) {
+			return params.CommandName, nil
+		},
+		Marshaler: cqrs.JSONMarshaler{
+			GenerateName: cqrs.StructName,
+		},
+	})
+}
+
 func RegisterEventHandlers(
 	rdb *redis.Client,
 	router *message.Router,
