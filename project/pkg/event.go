@@ -65,3 +65,38 @@ func RegisterEventHandlers(
 	}
 	return nil
 }
+
+func RegisterCommandHandlers(
+	rdb *redis.Client,
+	router *message.Router,
+	handlers []cqrs.CommandHandler,
+	logger watermill.LoggerAdapter,
+) error {
+	cp, err := cqrs.NewCommandProcessorWithConfig(
+		router,
+		cqrs.CommandProcessorConfig{
+			SubscriberConstructor: func(params cqrs.CommandProcessorSubscriberConstructorParams) (message.Subscriber, error) {
+				return redisstream.NewSubscriber(redisstream.SubscriberConfig{
+					Client:        rdb,
+					ConsumerGroup: "svc-tickets." + params.HandlerName,
+				}, logger)
+			},
+			GenerateSubscribeTopic: func(params cqrs.CommandProcessorGenerateSubscribeTopicParams) (string, error) {
+				return params.CommandName, nil
+			},
+			Marshaler: cqrs.JSONMarshaler{
+				GenerateName: cqrs.StructName,
+			},
+			Logger: logger,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("could not create command processor: %w", err)
+	}
+
+	err = cp.AddHandlers(handlers...)
+	if err != nil {
+		return fmt.Errorf("could not add handlers to command processor: %w", err)
+	}
+	return nil
+}

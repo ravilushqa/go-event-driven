@@ -42,6 +42,7 @@ func New(
 	receiptsService pubsub.ReceiptsService,
 	fileService pubsub.FileService,
 	deadNationService pubsub.DeadNationService,
+	paymentService pubsub.PaymentService,
 ) Service {
 	ticketsRepo := tickets.NewPostgresRepository(db)
 	showsRepo := shows.NewPostgresRepository(db)
@@ -69,6 +70,7 @@ func New(
 		receiptsService,
 		fileService,
 		deadNationService,
+		paymentService,
 		ticketsRepo,
 		showsRepo,
 	)
@@ -89,6 +91,18 @@ func New(
 			eventsHandler.DeleteTicketHandler(),
 			eventsHandler.PrintTicketHandler(),
 			eventsHandler.PostTicketBookingHandler(),
+		},
+		watermillLogger,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	err = pkg.RegisterCommandHandlers(
+		redisClient,
+		watermillRouter,
+		[]cqrs.CommandHandler{
+			eventsHandler.RefundTicketHandler(),
 		},
 		watermillLogger,
 	)

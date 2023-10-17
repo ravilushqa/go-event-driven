@@ -49,9 +49,10 @@ func TestComponent(t *testing.T) {
 	defer redisClient.Close()
 
 	spreadsheetsClient := &gateway.SpreadsheetsMock{}
-	receiptsClient := &gateway.ReceiptsMock{IssuedReceipts: map[string]entity.IssueReceiptRequest{}}
+	receiptsClient := &gateway.ReceiptsMock{}
 	filesClient := &gateway.FilesMock{}
 	deadNationClient := &gateway.DeadNationMock{}
+	paymentClient := &gateway.PaymentMock{}
 
 	go func() {
 		svc := service.New(
@@ -62,6 +63,7 @@ func TestComponent(t *testing.T) {
 			receiptsClient,
 			filesClient,
 			deadNationClient,
+			paymentClient,
 		)
 		assert.NoError(t, svc.Run(ctx))
 	}()
@@ -112,6 +114,10 @@ func TestComponent(t *testing.T) {
 	})
 	assert.Equal(t, http.StatusCreated, bookResp.StatusCode)
 
+	bookingID := postBookTicketsResponse{}
+	err = json.NewDecoder(bookResp.Body).Decode(&bookingID)
+	require.NoError(t, err)
+
 	// overbooking
 	bookResp = bookTickets(t, postBookTicketsRequest{
 		ShowID:          showID,
@@ -120,6 +126,33 @@ func TestComponent(t *testing.T) {
 	})
 	assert.Equal(t, http.StatusBadRequest, bookResp.StatusCode)
 
+	// refund
+	resp := sentTicketRefund(t, bookingID.BookingID)
+	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	assertVoidReceipt(t, receiptsClient, ticket.TicketID)
+	assertRefundIssued(t, paymentClient, ticket.TicketID)
+}
+
+func assertVoidReceipt(t *testing.T, client *gateway.ReceiptsMock, id string) {
+	assert.EventuallyWithT(
+		t,
+		func(t *assert.CollectT) {
+			assert.Equal(t, 1, len(client.VoidedReceipts), "receipt for booking %s not voided", id)
+		},
+		10*time.Second,
+		100*time.Millisecond,
+	)
+}
+
+func assertRefundIssued(t *testing.T, client *gateway.PaymentMock, id string) {
+	assert.EventuallyWithT(
+		t,
+		func(t *assert.CollectT) {
+			assert.Equal(t, 1, len(client.Refunds), "receipt for booking %s not voided", id)
+		},
+		10*time.Second,
+		100*time.Millisecond,
+	)
 }
 
 func assertTicketStoredInRepository(t *testing.T, db *sqlx.DB, ticket TicketStatus) {
@@ -247,6 +280,10 @@ type postBookTicketsRequest struct {
 	CustomerEmail   string `json:"customer_email"`
 }
 
+type postBookTicketsResponse struct {
+	BookingID string `json:"booking_id"`
+}
+
 func sendTicketsStatus(t *testing.T, req TicketsStatusRequest, idempotencyKey string) {
 	t.Helper()
 
@@ -283,12 +320,6 @@ func sendPostShow(t *testing.T, request postShowsRequest) string {
 
 	payload, err := json.Marshal(request)
 	require.NoError(t, err)
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-		},
-	}
-
 	httpReq, err := http.NewRequest(
 		http.MethodPost,
 		"http://localhost:8080/shows",
@@ -298,7 +329,7 @@ func sendPostShow(t *testing.T, request postShowsRequest) string {
 	httpReq.Header.Set("Content-Type", "application/json")
 	require.NoError(t, err)
 
-	resp, err := client.Do(httpReq)
+	resp, err := http.DefaultClient.Do(httpReq)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 
@@ -306,6 +337,26 @@ func sendPostShow(t *testing.T, request postShowsRequest) string {
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	require.NoError(t, err)
 	return response.ShowID
+}
+
+func sentTicketRefund(t *testing.T, bookingID string) *http.Response {
+	t.Helper()
+
+	correlationID := shortuuid.New()
+
+	httpReq, err := http.NewRequest(
+		http.MethodPut,
+		"http://localhost:8080/ticket-refund/"+bookingID,
+		nil,
+	)
+	httpReq.Header.Set("Correlation-ID", correlationID)
+	httpReq.Header.Set("Content-Type", "application/json")
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	require.NoError(t, err)
+
+	return resp
 }
 
 func bookTickets(t *testing.T, request postBookTicketsRequest) *http.Response {

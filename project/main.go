@@ -60,10 +60,11 @@ func main() {
 	spreadsheetsClient := gateway.NewSpreadsheetsClient(c)
 	filesClient := gateway.NewFilesClient(c)
 	deadNationClient := gateway.NewDeadNationClient(c)
+	paymentClient := gateway.NewPaymentClient(c)
 	redisClient := pkg.NewRedisClient(opts.RedisAddr)
 	defer redisClient.Close()
 
-	err = service.New(opts.HTTPAddress, dbconn, redisClient, spreadsheetsClient, receiptsClient, filesClient, deadNationClient).Run(ctx)
+	err = service.New(opts.HTTPAddress, dbconn, redisClient, spreadsheetsClient, receiptsClient, filesClient, deadNationClient, paymentClient).Run(ctx)
 	if err != nil {
 		logger.WithError(err).Error("service failed")
 	}

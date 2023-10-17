@@ -14,6 +14,7 @@ type SpreadsheetsAPI interface {
 
 type ReceiptsService interface {
 	IssueReceipt(ctx context.Context, request entity.IssueReceiptRequest) (entity.IssueReceiptResponse, error)
+	PutVoidReceiptWithResponse(ctx context.Context, command entity.RefundTicket) error
 }
 
 type TicketsRepository interface {
@@ -35,12 +36,17 @@ type DeadNationService interface {
 	PostTicketBooking(ctx context.Context, BookingID, CustomerAddress, EventID string, NumberOfTickets int) error
 }
 
+type PaymentService interface {
+	PutRefundsWithResponse(ctx context.Context, command entity.RefundTicket) error
+}
+
 type Handler struct {
 	eventbus            *cqrs.EventBus
 	spreadsheetsService SpreadsheetsAPI
 	receiptsService     ReceiptsService
 	filesService        FileService
 	deadNationService   DeadNationService
+	paymentService      PaymentService
 	ticketsRepository   TicketsRepository
 	showsRepo           ShowsRepository
 }
@@ -51,6 +57,7 @@ func NewHandler(
 	receiptsService ReceiptsService,
 	filesService FileService,
 	deadNationService DeadNationService,
+	paymentService PaymentService,
 	ticketsRepository TicketsRepository,
 	showsRepo ShowsRepository,
 ) Handler {
@@ -75,6 +82,9 @@ func NewHandler(
 	if showsRepo == nil {
 		panic("missing showsRepo")
 	}
+	if paymentService == nil {
+		panic("missing paymentService")
+	}
 
 	return Handler{
 		eventbus:            eventbus,
@@ -82,6 +92,7 @@ func NewHandler(
 		receiptsService:     receiptsService,
 		filesService:        filesService,
 		deadNationService:   deadNationService,
+		paymentService:      paymentService,
 		ticketsRepository:   ticketsRepository,
 		showsRepo:           showsRepo,
 	}
