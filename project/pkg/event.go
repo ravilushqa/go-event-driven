@@ -13,7 +13,7 @@ import (
 func NewEventBus(pub message.Publisher) (*cqrs.EventBus, error) {
 	return cqrs.NewEventBusWithConfig(pub, cqrs.EventBusConfig{
 		GeneratePublishTopic: func(params cqrs.GenerateEventPublishTopicParams) (string, error) {
-			return params.EventName, nil
+			return "events." + params.EventName, nil
 		},
 		Marshaler: cqrs.JSONMarshaler{
 			GenerateName: cqrs.StructName,
@@ -24,7 +24,7 @@ func NewEventBus(pub message.Publisher) (*cqrs.EventBus, error) {
 func NewCommandBus(pub message.Publisher) (*cqrs.CommandBus, error) {
 	return cqrs.NewCommandBusWithConfig(pub, cqrs.CommandBusConfig{
 		GeneratePublishTopic: func(params cqrs.CommandBusGeneratePublishTopicParams) (string, error) {
-			return params.CommandName, nil
+			return "commands." + params.CommandName, nil
 		},
 		Marshaler: cqrs.JSONMarshaler{
 			GenerateName: cqrs.StructName,
@@ -48,7 +48,7 @@ func RegisterEventHandlers(
 				}, logger)
 			},
 			GenerateSubscribeTopic: func(params cqrs.EventProcessorGenerateSubscribeTopicParams) (string, error) {
-				return params.EventName, nil
+				return "events." + params.EventName, nil
 			},
 			Marshaler: cqrs.JSONMarshaler{
 				GenerateName: cqrs.StructName,
@@ -82,7 +82,7 @@ func RegisterCommandHandlers(
 				}, logger)
 			},
 			GenerateSubscribeTopic: func(params cqrs.CommandProcessorGenerateSubscribeTopicParams) (string, error) {
-				return params.CommandName, nil
+				return "commands." + params.CommandName, nil
 			},
 			Marshaler: cqrs.JSONMarshaler{
 				GenerateName: cqrs.StructName,
