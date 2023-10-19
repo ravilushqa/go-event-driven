@@ -45,12 +45,8 @@ func TestOpsBookingReadModel(t *testing.T) {
 		}
 		assert.NoError(t, readModel.OnTicketBookingConfirmed(ctx, ticketReceiptIssued))
 
-		tx := dbConn.MustBegin()
-		booking, err := repo.GetByID(ctx, tx, ticketReceiptIssued.BookingID)
-		if err != nil {
-			return
-		}
-		tx.Commit()
+		booking, err := repo.Get(ctx, ticketReceiptIssued.BookingID)
+		assert.NoError(t, err)
 
 		assert.Equal(t, 1, len(booking.Tickets))
 	})

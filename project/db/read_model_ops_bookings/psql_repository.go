@@ -20,6 +20,50 @@ func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
+func (r PostgresRepository) FindAll(ctx context.Context) ([]entity.OpsBooking, error) {
+	var bookingsData [][]byte
+	err := r.db.SelectContext(ctx, &bookingsData, `
+		SELECT payload 
+		FROM read_model_ops_bookings
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("could not get booking read models: %w", err)
+	}
+
+	var bookings []entity.OpsBooking
+	for _, bookingData := range bookingsData {
+		var booking entity.OpsBooking
+		if err = json.Unmarshal(bookingData, &booking); err != nil {
+			return nil, fmt.Errorf("could not unmarshal booking read model: %w", err)
+		}
+		bookings = append(bookings, booking)
+	}
+
+	return bookings, nil
+}
+
+func (r PostgresRepository) Get(ctx context.Context, bookingID string) (entity.OpsBooking, error) {
+	var payload []byte
+	err := r.db.GetContext(ctx, &payload, `
+		SELECT payload 
+		FROM read_model_ops_bookings 
+		WHERE booking_id = $1
+		`, bookingID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.OpsBooking{}, nil
+		}
+		return entity.OpsBooking{}, fmt.Errorf("could not get booking read model: %w", err)
+	}
+
+	var booking entity.OpsBooking
+	if err = json.Unmarshal(payload, &booking); err != nil {
+		return entity.OpsBooking{}, fmt.Errorf("could not unmarshal booking read model: %w", err)
+	}
+
+	return booking, nil
+}
+
 // Store stores booking in database. Idempotent. On conflict do nothing.
 func (r PostgresRepository) Store(ctx context.Context, booking entity.OpsBooking) error {
 	payload, err := json.Marshal(booking)
@@ -43,7 +87,7 @@ func (r PostgresRepository) Store(ctx context.Context, booking entity.OpsBooking
 
 func (r PostgresRepository) UpdateByBookingID(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error {
 	return updateInTx(ctx, r.db, sql.LevelRepeatableRead, func(ctx context.Context, tx *sqlx.Tx) error {
-		booking, err := r.GetByID(ctx, tx, bookingID)
+		booking, err := r.getByID(ctx, tx, bookingID)
 		if err != nil {
 			return err
 		}
@@ -129,7 +173,7 @@ func (r PostgresRepository) GetByTicketID(ctx context.Context, tx *sqlx.Tx, tick
 	return &booking, nil
 }
 
-func (r PostgresRepository) GetByID(ctx context.Context, tx *sqlx.Tx, id string) (*entity.OpsBooking, error) {
+func (r PostgresRepository) getByID(ctx context.Context, tx *sqlx.Tx, id string) (*entity.OpsBooking, error) {
 	if tx == nil {
 		return nil, errors.New("tx is nil")
 	}

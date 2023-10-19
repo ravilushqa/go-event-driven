@@ -112,6 +112,7 @@ func New(
 		ticketsRepo,
 		showsRepo,
 		bookingsRepo,
+		readModelBookingsRepo,
 	)
 
 	return Service{

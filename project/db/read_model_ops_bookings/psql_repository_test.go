@@ -39,7 +39,7 @@ func TestPostgresRepository_Store(t *testing.T) {
 
 		tx, err := dbConn.Beginx()
 		assert.NoError(t, err)
-		booking, err := repo.GetByID(ctx, tx, model.BookingID)
+		booking, err := repo.getByID(ctx, tx, model.BookingID)
 		assert.NoError(t, err)
 
 		err = tx.Commit()
@@ -71,7 +71,7 @@ func TestPostgresRepository_Store(t *testing.T) {
 
 		tx, err := dbConn.Beginx()
 		assert.NoError(t, err)
-		booking, err := repo.GetByID(ctx, tx, model.BookingID)
+		booking, err := repo.getByID(ctx, tx, model.BookingID)
 		assert.NoError(t, err)
 
 		err = tx.Commit()

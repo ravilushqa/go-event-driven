@@ -30,6 +30,11 @@ type BookingsRepository interface {
 	Store(ctx context.Context, booking entity.Booking, showTicketsCount int) error
 }
 
+type OpsBookingsRepository interface {
+	FindAll(ctx context.Context) ([]entity.OpsBooking, error)
+	Get(ctx context.Context, bookingID string) (entity.OpsBooking, error)
+}
+
 type Server struct {
 	addr                  string
 	e                     *echo.Echo
@@ -39,6 +44,7 @@ type Server struct {
 	ticketsRepo           TicketsRepository
 	showsRepo             ShowsRepository
 	bookingsRepo          BookingsRepository
+	opsBookingsRepo       OpsBookingsRepository
 }
 
 func NewServer(
@@ -49,6 +55,7 @@ func NewServer(
 	ticketsRepo TicketsRepository,
 	showsRepo ShowsRepository,
 	bookingsRepo BookingsRepository,
+	opsBookingsRepo OpsBookingsRepository,
 ) *Server {
 	e := echoHTTP.NewEcho()
 
@@ -61,12 +68,15 @@ func NewServer(
 		ticketsRepo:           ticketsRepo,
 		showsRepo:             showsRepo,
 		bookingsRepo:          bookingsRepo,
+		opsBookingsRepo:       opsBookingsRepo,
 	}
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
+	e.GET("/ops/bookings", server.GetOpsBookings)
+	e.GET("/ops/bookings/:id", server.GetOpsBooking)
 	e.GET("/tickets", server.GetTickets)
 	e.POST("/tickets-status", server.PostTicketsStatus)
 	e.PUT("/ticket-refund/:ticket_id", server.TicketRefund)
