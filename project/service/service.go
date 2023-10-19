@@ -9,7 +9,6 @@ import (
 	"tickets/db/shows"
 	"tickets/db/tickets"
 	"tickets/http"
-	"tickets/pkg"
 	"tickets/pubsub"
 	"tickets/pubsub/bus"
 	"tickets/pubsub/command"
@@ -52,7 +51,7 @@ func New(
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
 
 	var redisPublisher message.Publisher
-	redisPublisher = pkg.NewRedisPublisher(redisClient, watermillLogger)
+	redisPublisher = pubsub.NewRedisPublisher(redisClient, watermillLogger)
 	redisPublisher = log.CorrelationPublisherDecorator{Publisher: redisPublisher}
 
 	eventBus, err := bus.NewEventBus(redisPublisher)
