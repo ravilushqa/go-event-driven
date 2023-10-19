@@ -41,7 +41,7 @@ func (r PostgresRepository) Store(ctx context.Context, booking entity.OpsBooking
 	return nil
 }
 
-func (r PostgresRepository) Update(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error {
+func (r PostgresRepository) UpdateByBookingID(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error {
 	return updateInTx(ctx, r.db, sql.LevelRepeatableRead, func(ctx context.Context, tx *sqlx.Tx) error {
 		booking, err := r.GetByID(ctx, tx, bookingID)
 		if err != nil {

@@ -11,7 +11,7 @@ import (
 
 type Repository interface {
 	Store(ctx context.Context, booking entity.OpsBooking) error
-	Update(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error
+	UpdateByBookingID(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error
 	UpdateByTicketID(ctx context.Context, ticketID string, update func(booking *entity.OpsBooking) error) error
 }
 
@@ -58,7 +58,7 @@ func (r OpsBookingReadModel) OnTicketReceiptIssued(ctx context.Context, ticketBo
 
 func (r OpsBookingReadModel) OnTicketBookingConfirmed(ctx context.Context, ticketBookingConfirmed *entity.TicketBookingConfirmed) error {
 	log.FromContext(ctx).Infof("OpsBookingReadModel: OnTicketBookingConfirmed: %s", ticketBookingConfirmed.TicketID)
-	return r.repo.Update(ctx, ticketBookingConfirmed.BookingID, func(booking *entity.OpsBooking) error {
+	return r.repo.UpdateByBookingID(ctx, ticketBookingConfirmed.BookingID, func(booking *entity.OpsBooking) error {
 		ticket, ok := booking.Tickets[ticketBookingConfirmed.TicketID]
 		if !ok {
 			ticket = entity.OpsTicket{}
