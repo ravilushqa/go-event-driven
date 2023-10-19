@@ -58,6 +58,7 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price:         ticket.Price,
+				BookingID:     ticket.BookingID,
 			}
 
 			err = s.eventbus.Publish(c.Request().Context(), event)
@@ -70,6 +71,7 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price:         ticket.Price,
+				BookingID:     ticket.BookingID,
 			}
 
 			err = s.eventbus.Publish(c.Request().Context(), event)

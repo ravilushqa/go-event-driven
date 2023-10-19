@@ -2,7 +2,6 @@ package read_models_handlers
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
@@ -13,6 +12,7 @@ import (
 type Repository interface {
 	Store(ctx context.Context, booking entity.OpsBooking) error
 	Update(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error
+	UpdateByTicketID(ctx context.Context, ticketID string, update func(booking *entity.OpsBooking) error) error
 }
 
 type OpsBookingReadModel struct {
@@ -37,15 +37,18 @@ func (r OpsBookingReadModel) OnBookingMade(ctx context.Context, bookingMade *ent
 
 func (r OpsBookingReadModel) OnTicketReceiptIssued(ctx context.Context, ticketBookingConfirmed *entity.TicketReceiptIssued) error {
 	log.FromContext(ctx).Infof("OpsBookingReadModel: OnTicketReceiptIssued: %s", ticketBookingConfirmed.TicketID)
-	return r.repo.Update(ctx, ticketBookingConfirmed.TicketID, func(booking *entity.OpsBooking) error {
+	return r.repo.UpdateByTicketID(ctx, ticketBookingConfirmed.TicketID, func(booking *entity.OpsBooking) error {
 		ticket, ok := booking.Tickets[ticketBookingConfirmed.TicketID]
 		if !ok {
-			return errors.New("ticket not found")
+			ticket = entity.OpsTicket{}
 		}
 
 		ticket.ReceiptIssuedAt = ticketBookingConfirmed.Header.PublishedAt
 		ticket.ReceiptNumber = ticketBookingConfirmed.ReceiptNumber
 
+		if booking.Tickets == nil {
+			booking.Tickets = make(map[string]entity.OpsTicket)
+		}
 		booking.Tickets[ticketBookingConfirmed.TicketID] = ticket
 		booking.LastUpdate = time.Now()
 
@@ -55,10 +58,10 @@ func (r OpsBookingReadModel) OnTicketReceiptIssued(ctx context.Context, ticketBo
 
 func (r OpsBookingReadModel) OnTicketBookingConfirmed(ctx context.Context, ticketBookingConfirmed *entity.TicketBookingConfirmed) error {
 	log.FromContext(ctx).Infof("OpsBookingReadModel: OnTicketBookingConfirmed: %s", ticketBookingConfirmed.TicketID)
-	return r.repo.Update(ctx, ticketBookingConfirmed.TicketID, func(booking *entity.OpsBooking) error {
+	return r.repo.Update(ctx, ticketBookingConfirmed.BookingID, func(booking *entity.OpsBooking) error {
 		ticket, ok := booking.Tickets[ticketBookingConfirmed.TicketID]
 		if !ok {
-			return errors.New("ticket not found")
+			ticket = entity.OpsTicket{}
 		}
 
 		ticket.PriceAmount = ticketBookingConfirmed.Price.Amount
@@ -68,6 +71,9 @@ func (r OpsBookingReadModel) OnTicketBookingConfirmed(ctx context.Context, ticke
 			ticket.Status = "confirmed"
 		}
 
+		if booking.Tickets == nil {
+			booking.Tickets = make(map[string]entity.OpsTicket)
+		}
 		booking.Tickets[ticketBookingConfirmed.TicketID] = ticket
 		booking.LastUpdate = time.Now()
 
@@ -77,15 +83,18 @@ func (r OpsBookingReadModel) OnTicketBookingConfirmed(ctx context.Context, ticke
 
 func (r OpsBookingReadModel) OnTicketPrinted(ctx context.Context, ticketPrinted *entity.TicketPrinted) error {
 	log.FromContext(ctx).Infof("OpsBookingReadModel: OnTicketPrinted: %s", ticketPrinted.TicketID)
-	return r.repo.Update(ctx, ticketPrinted.TicketID, func(booking *entity.OpsBooking) error {
+	return r.repo.UpdateByTicketID(ctx, ticketPrinted.TicketID, func(booking *entity.OpsBooking) error {
 		ticket, ok := booking.Tickets[ticketPrinted.TicketID]
 		if !ok {
-			return errors.New("ticket not found")
+			ticket = entity.OpsTicket{}
 		}
 
 		ticket.PrintedAt = ticketPrinted.Header.PublishedAt
 		ticket.PrintedFileName = ticketPrinted.FileName
 
+		if booking.Tickets == nil {
+			booking.Tickets = make(map[string]entity.OpsTicket)
+		}
 		booking.Tickets[ticketPrinted.TicketID] = ticket
 		booking.LastUpdate = time.Now()
 
@@ -95,14 +104,17 @@ func (r OpsBookingReadModel) OnTicketPrinted(ctx context.Context, ticketPrinted 
 
 func (r OpsBookingReadModel) OnTicketRefunded(ctx context.Context, ticketRefunded *entity.TicketRefunded) error {
 	log.FromContext(ctx).Infof("OpsBookingReadModel: OnTicketRefunded: %s", ticketRefunded.TicketID)
-	return r.repo.Update(ctx, ticketRefunded.TicketID, func(booking *entity.OpsBooking) error {
+	return r.repo.UpdateByTicketID(ctx, ticketRefunded.TicketID, func(booking *entity.OpsBooking) error {
 		ticket, ok := booking.Tickets[ticketRefunded.TicketID]
 		if !ok {
-			return errors.New("ticket not found")
+			ticket = entity.OpsTicket{}
 		}
 
 		ticket.Status = "refunded"
 
+		if booking.Tickets == nil {
+			booking.Tickets = make(map[string]entity.OpsTicket)
+		}
 		booking.Tickets[ticketRefunded.TicketID] = ticket
 		booking.LastUpdate = time.Now()
 

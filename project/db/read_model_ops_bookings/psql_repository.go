@@ -43,7 +43,7 @@ func (r PostgresRepository) Store(ctx context.Context, booking entity.OpsBooking
 
 func (r PostgresRepository) Update(ctx context.Context, bookingID string, update func(booking *entity.OpsBooking) error) error {
 	return updateInTx(ctx, r.db, sql.LevelRepeatableRead, func(ctx context.Context, tx *sqlx.Tx) error {
-		booking, err := r.getByID(ctx, tx, bookingID)
+		booking, err := r.GetByID(ctx, tx, bookingID)
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,66 @@ func (r PostgresRepository) Update(ctx context.Context, bookingID string, update
 	})
 }
 
-func (r PostgresRepository) getByID(ctx context.Context, tx *sqlx.Tx, id string) (*entity.OpsBooking, error) {
+func (r PostgresRepository) UpdateByTicketID(ctx context.Context, ticketID string, update func(booking *entity.OpsBooking) error) error {
+	return updateInTx(ctx, r.db, sql.LevelRepeatableRead, func(ctx context.Context, tx *sqlx.Tx) error {
+		booking, err := r.GetByTicketID(ctx, tx, ticketID)
+		if err != nil {
+			return err
+		}
+
+		if err = update(booking); err != nil {
+			return err
+		}
+
+		payload, err := json.Marshal(booking)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.NamedExecContext(ctx, `
+			UPDATE read_model_ops_bookings 
+			SET payload = :payload
+			WHERE booking_id = :booking_id
+			`, map[string]interface{}{
+			"booking_id": booking.BookingID,
+			"payload":    payload,
+		})
+		if err != nil {
+			return fmt.Errorf("could not update booking read model: %w", err)
+		}
+
+		return nil
+	})
+}
+
+func (r PostgresRepository) GetByTicketID(ctx context.Context, tx *sqlx.Tx, ticketID string) (*entity.OpsBooking, error) {
+	if tx == nil {
+		return nil, errors.New("tx is nil")
+	}
+	var payload []byte
+	err := tx.GetContext(ctx, &payload, `
+		SELECT payload
+		FROM read_model_ops_bookings
+		WHERE payload->'tickets' ? $1
+		`,
+		ticketID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not get booking read model: %w", err)
+	}
+
+	var booking entity.OpsBooking
+	if err = json.Unmarshal(payload, &booking); err != nil {
+		return nil, fmt.Errorf("could not unmarshal booking read model: %w", err)
+	}
+
+	return &booking, nil
+}
+
+func (r PostgresRepository) GetByID(ctx context.Context, tx *sqlx.Tx, id string) (*entity.OpsBooking, error) {
+	if tx == nil {
+		return nil, errors.New("tx is nil")
+	}
 	var payload []byte
 	err := tx.GetContext(ctx, &payload, `
 		SELECT payload 
@@ -81,15 +140,18 @@ func (r PostgresRepository) getByID(ctx context.Context, tx *sqlx.Tx, id string)
 		WHERE booking_id = $1
 		`, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return &entity.OpsBooking{}, nil
+		}
 		return nil, fmt.Errorf("could not get booking read model: %w", err)
 	}
 
-	var booking *entity.OpsBooking
-	if err = json.Unmarshal(payload, booking); err != nil {
+	var booking entity.OpsBooking
+	if err = json.Unmarshal(payload, &booking); err != nil {
 		return nil, fmt.Errorf("could not unmarshal booking read model: %w", err)
 	}
 
-	return booking, nil
+	return &booking, nil
 }
 
 func updateInTx(
