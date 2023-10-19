@@ -61,3 +61,8 @@ type TicketReceiptIssued struct {
 	ReceiptNumber string      `json:"receipt_number"`
 	IssuedAt      time.Time   `json:"issued_at"`
 }
+
+type TicketRefunded struct {
+	Header   EventHeader `json:"header"`
+	TicketID string      `json:"ticket_id"`
+}

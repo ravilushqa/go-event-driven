@@ -23,7 +23,10 @@ func (h Handler) RefundTicketHandler() cqrs.CommandHandler {
 				return err
 			}
 
-			return nil
+			return h.eventBus.Publish(ctx, entity.TicketRefunded{
+				Header:   entity.NewEventHeaderWithIdempotencyKey(event.Header.IdempotencyKey),
+				TicketID: event.TicketID,
+			})
 		},
 	)
 }

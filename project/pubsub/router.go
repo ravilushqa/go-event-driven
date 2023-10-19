@@ -10,6 +10,7 @@ import (
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
 	"tickets/pubsub/outbox"
+	"tickets/pubsub/read_models_handlers"
 )
 
 func NewWatermillRouter(
@@ -19,6 +20,7 @@ func NewWatermillRouter(
 	eventHandler event.Handler,
 	commandProcessorConfig cqrs.CommandProcessorConfig,
 	commandsHandler command.Handler,
+	opsBookingReadModelHandlers read_models_handlers.OpsBookingReadModel,
 	watermillLogger watermill.LoggerAdapter,
 ) (*message.Router, error) {
 	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
@@ -43,6 +45,26 @@ func NewWatermillRouter(
 		eventHandler.DeleteTicketHandler(),
 		eventHandler.PrintTicketHandler(),
 		eventHandler.PostTicketBookingHandler(),
+		cqrs.NewEventHandler(
+			"ops_read_model.OnBookingMade",
+			opsBookingReadModelHandlers.OnBookingMade,
+		),
+		cqrs.NewEventHandler(
+			"ops_read_model.OnTicketReceiptIssued",
+			opsBookingReadModelHandlers.OnTicketReceiptIssued,
+		),
+		cqrs.NewEventHandler(
+			"ops_read_model.OnTicketBookingConfirmed",
+			opsBookingReadModelHandlers.OnTicketBookingConfirmed,
+		),
+		cqrs.NewEventHandler(
+			"ops_read_model.OnTicketPrinted",
+			opsBookingReadModelHandlers.OnTicketPrinted,
+		),
+		cqrs.NewEventHandler(
+			"ops_read_model.OnTicketRefunded",
+			opsBookingReadModelHandlers.OnTicketRefunded,
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to event processor: %w", err)
