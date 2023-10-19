@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
@@ -20,8 +21,17 @@ func (h Handler) IssueReceiptHandler() cqrs.EventHandler {
 				IdempotencyKey: event.Header.IdempotencyKey,
 			}
 
-			_, err := h.receiptsService.IssueReceipt(ctx, request)
-			return err
+			resp, err := h.receiptsService.IssueReceipt(ctx, request)
+			if err != nil {
+				return fmt.Errorf("failed to issue receipt: %w", err)
+			}
+
+			return h.eventbus.Publish(ctx, entity.TicketReceiptIssued{
+				Header:        entity.NewEventHeaderWithIdempotencyKey(event.Header.IdempotencyKey),
+				TicketID:      event.TicketID,
+				ReceiptNumber: resp.ReceiptNumber,
+				IssuedAt:      resp.IssuedAt,
+			})
 		},
 	)
 }
