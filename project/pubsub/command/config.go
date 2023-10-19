@@ -33,15 +33,3 @@ func NewProcessorConfig(
 		Logger: watermillLogger,
 	}
 }
-
-func NewBusConfig(watermillLogger watermill.LoggerAdapter) cqrs.CommandBusConfig {
-	return cqrs.CommandBusConfig{
-		GeneratePublishTopic: func(params cqrs.CommandBusGeneratePublishTopicParams) (string, error) {
-			return fmt.Sprintf("commands.%s", params.CommandName), nil
-		},
-		Marshaler: cqrs.JSONMarshaler{
-			GenerateName: cqrs.StructName,
-		},
-		Logger: watermillLogger,
-	}
-}
