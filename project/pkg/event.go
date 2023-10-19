@@ -10,28 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewEventBus(pub message.Publisher) (*cqrs.EventBus, error) {
-	return cqrs.NewEventBusWithConfig(pub, cqrs.EventBusConfig{
-		GeneratePublishTopic: func(params cqrs.GenerateEventPublishTopicParams) (string, error) {
-			return "events." + params.EventName, nil
-		},
-		Marshaler: cqrs.JSONMarshaler{
-			GenerateName: cqrs.StructName,
-		},
-	})
-}
-
-func NewCommandBus(pub message.Publisher) (*cqrs.CommandBus, error) {
-	return cqrs.NewCommandBusWithConfig(pub, cqrs.CommandBusConfig{
-		GeneratePublishTopic: func(params cqrs.CommandBusGeneratePublishTopicParams) (string, error) {
-			return "commands." + params.CommandName, nil
-		},
-		Marshaler: cqrs.JSONMarshaler{
-			GenerateName: cqrs.StructName,
-		},
-	})
-}
-
 func RegisterEventHandlers(
 	rdb *redis.Client,
 	router *message.Router,

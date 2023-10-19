@@ -12,10 +12,10 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
 	"tickets/gateway"
-	"tickets/pkg"
 	"tickets/service"
 )
 
@@ -61,7 +61,7 @@ func main() {
 	filesClient := gateway.NewFilesClient(c)
 	deadNationClient := gateway.NewDeadNationClient(c)
 	paymentClient := gateway.NewPaymentClient(c)
-	redisClient := pkg.NewRedisClient(opts.RedisAddr)
+	redisClient := redis.NewClient(&redis.Options{Addr: opts.RedisAddr})
 	defer redisClient.Close()
 
 	err = service.New(opts.HTTPAddress, dbconn, redisClient, spreadsheetsClient, receiptsClient, filesClient, deadNationClient, paymentClient).Run(ctx)

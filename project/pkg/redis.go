@@ -20,9 +20,3 @@ func NewRedisPublisher(rdb *redis.Client, watermillLogger watermill.LoggerAdapte
 	publisher = log.CorrelationPublisherDecorator{Publisher: publisher}
 	return publisher
 }
-
-func NewRedisClient(addr string) *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr: addr,
-	})
-}

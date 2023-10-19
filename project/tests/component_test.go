@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/lithammer/shortuuid/v3"
+	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,6 @@ import (
 	"tickets/db/tickets"
 	"tickets/entity"
 	"tickets/gateway"
-	"tickets/pkg"
 	"tickets/service"
 )
 
@@ -45,7 +45,7 @@ func TestComponent(t *testing.T) {
 	}
 	defer dbconn.Close()
 
-	redisClient := pkg.NewRedisClient(redisURL)
+	redisClient := redis.NewClient(&redis.Options{Addr: redisURL})
 	defer redisClient.Close()
 
 	spreadsheetsClient := &gateway.SpreadsheetsMock{}

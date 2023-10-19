@@ -4,16 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ThreeDotsLabs/watermill/components/cqrs"
-
 	"tickets/db"
 	"tickets/db/bookings"
 	"tickets/db/shows"
 	"tickets/db/tickets"
-	"tickets/handler/http"
-	"tickets/handler/pubsub"
+	"tickets/http"
 	"tickets/pkg"
-	"tickets/pkg/outbox"
+	"tickets/pubsub"
+	"tickets/pubsub/bus"
+	"tickets/pubsub/command"
+	"tickets/pubsub/event"
+	"tickets/pubsub/outbox"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -38,11 +39,11 @@ func New(
 	addr string,
 	db *sqlx.DB,
 	redisClient *redis.Client,
-	spreadsheetsService pubsub.SpreadsheetsAPI,
-	receiptsService pubsub.ReceiptsService,
-	fileService pubsub.FileService,
-	deadNationService pubsub.DeadNationService,
-	paymentService pubsub.PaymentService,
+	spreadsheetsService event.SpreadsheetsAPI,
+	receiptsService event.ReceiptsService,
+	fileService event.FileService,
+	deadNationService event.DeadNationService,
+	paymentService event.PaymentService,
 ) Service {
 	ticketsRepo := tickets.NewPostgresRepository(db)
 	showsRepo := shows.NewPostgresRepository(db)
@@ -54,17 +55,12 @@ func New(
 	redisPublisher = pkg.NewRedisPublisher(redisClient, watermillLogger)
 	redisPublisher = log.CorrelationPublisherDecorator{Publisher: redisPublisher}
 
-	eventBus, err := pkg.NewEventBus(redisPublisher)
+	eventBus, err := bus.NewEventBus(redisPublisher)
 	if err != nil {
 		panic(fmt.Errorf("failed to create event bus: %w", err))
 	}
 
-	commandBus, err := pkg.NewCommandBus(redisPublisher)
-	if err != nil {
-		panic(fmt.Errorf("failed to create command bus: %w", err))
-	}
-
-	eventsHandler := pubsub.NewHandler(
+	eventsHandler := event.NewHandler(
 		eventBus,
 		spreadsheetsService,
 		receiptsService,
@@ -74,44 +70,33 @@ func New(
 		ticketsRepo,
 		showsRepo,
 	)
-	watermillRouter, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
-	if err != nil {
-		panic(err)
-	}
-	pubsub.UseMiddlewares(watermillRouter, watermillLogger)
 
-	err = pkg.RegisterEventHandlers(
-		redisClient,
-		watermillRouter,
-		[]cqrs.EventHandler{
-			eventsHandler.StoreTicketHandler(),
-			eventsHandler.AppendToTrackerHandler(),
-			eventsHandler.IssueReceiptHandler(),
-			eventsHandler.CancelTicketHandler(),
-			eventsHandler.DeleteTicketHandler(),
-			eventsHandler.PrintTicketHandler(),
-			eventsHandler.PostTicketBookingHandler(),
-		},
-		watermillLogger,
-	)
+	commandBus, err := bus.NewCommandBus(redisPublisher)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to create command bus: %w", err))
 	}
 
-	err = pkg.RegisterCommandHandlers(
-		redisClient,
-		watermillRouter,
-		[]cqrs.CommandHandler{
-			eventsHandler.RefundTicketHandler(),
-		},
-		watermillLogger,
+	commandsHandler := command.NewHandler(
+		receiptsService,
+		paymentService,
 	)
-	if err != nil {
-		panic(err)
-	}
 
 	postgresSubscriber := outbox.NewPostgresSubscriber(db.DB, watermillLogger)
-	outbox.AddForwarderHandler(postgresSubscriber, redisPublisher, watermillRouter, watermillLogger)
+	eventProcessorConfig := event.NewProcessorConfig(redisClient, watermillLogger)
+	commandProcessorConfig := command.NewProcessorConfig(redisClient, watermillLogger)
+
+	watermillRouter, err := pubsub.NewWatermillRouter(
+		postgresSubscriber,
+		redisPublisher,
+		eventProcessorConfig,
+		eventsHandler,
+		commandProcessorConfig,
+		commandsHandler,
+		watermillLogger,
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create watermill router: %w", err))
+	}
 
 	httpServer := http.NewServer(
 		addr,

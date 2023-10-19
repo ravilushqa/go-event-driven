@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func UseMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdapter) {
+func useMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdapter) {
 	router.AddMiddleware(middleware.Recoverer)
 
 	router.AddMiddleware(middleware.Retry{

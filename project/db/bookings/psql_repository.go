@@ -9,8 +9,8 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"tickets/entity"
-	"tickets/pkg"
-	"tickets/pkg/outbox"
+	"tickets/pubsub/bus"
+	"tickets/pubsub/outbox"
 )
 
 var ErrNoAvailableTickets = errors.New("no available tickets")
@@ -63,7 +63,7 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, 
 		return fmt.Errorf("could not create event bus: %w", err)
 	}
 
-	eventBus, err := pkg.NewEventBus(outboxPublisher)
+	eventBus, err := bus.NewEventBus(outboxPublisher)
 	if err != nil {
 		return err
 	}
