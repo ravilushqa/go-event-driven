@@ -4,6 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ThreeDotsLabs/go-event-driven/common/log"
+	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+
 	"tickets/db"
 	"tickets/db/bookings"
 	"tickets/db/read_model_ops_bookings"
@@ -15,15 +23,6 @@ import (
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
 	"tickets/pubsub/outbox"
-	"tickets/pubsub/read_models_handlers"
-
-	"github.com/ThreeDotsLabs/go-event-driven/common/log"
-	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -49,7 +48,7 @@ func New(
 	ticketsRepo := tickets.NewPostgresRepository(db)
 	showsRepo := shows.NewPostgresRepository(db)
 	bookingsRepo := bookings.NewPostgresRepository(db)
-	readModelBookingsRepo := read_model_ops_bookings.NewPostgresRepository(db)
+	opsReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db)
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
 
@@ -88,8 +87,6 @@ func New(
 	eventProcessorConfig := event.NewProcessorConfig(redisClient, watermillLogger)
 	commandProcessorConfig := command.NewProcessorConfig(redisClient, watermillLogger)
 
-	opsBookingReadModel := read_models_handlers.NewOpsBookingReadModel(readModelBookingsRepo)
-
 	watermillRouter, err := pubsub.NewWatermillRouter(
 		postgresSubscriber,
 		redisPublisher,
@@ -97,7 +94,7 @@ func New(
 		eventsHandler,
 		commandProcessorConfig,
 		commandsHandler,
-		opsBookingReadModel,
+		opsReadModel,
 		watermillLogger,
 	)
 	if err != nil {
@@ -112,7 +109,7 @@ func New(
 		ticketsRepo,
 		showsRepo,
 		bookingsRepo,
-		readModelBookingsRepo,
+		opsReadModel,
 	)
 
 	return Service{

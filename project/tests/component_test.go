@@ -75,7 +75,7 @@ func TestComponent(t *testing.T) {
 		Status:    "confirmed",
 		Price:     Money{Amount: "100", Currency: "USD"},
 		Email:     "test@test.io",
-		BookingID: "booking-1",
+		BookingID: uuid.NewString(),
 	}
 
 	idempotencyKey := uuid.NewString()

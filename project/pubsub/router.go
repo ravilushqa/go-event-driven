@@ -7,10 +7,10 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 	"github.com/ThreeDotsLabs/watermill/message"
 
+	"tickets/db/read_model_ops_bookings"
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
 	"tickets/pubsub/outbox"
-	"tickets/pubsub/read_models_handlers"
 )
 
 func NewWatermillRouter(
@@ -20,7 +20,7 @@ func NewWatermillRouter(
 	eventHandler event.Handler,
 	commandProcessorConfig cqrs.CommandProcessorConfig,
 	commandsHandler command.Handler,
-	opsBookingReadModelHandlers read_models_handlers.OpsBookingReadModel,
+	opsReadModel read_model_ops_bookings.OpsBookingReadModel,
 	watermillLogger watermill.LoggerAdapter,
 ) (*message.Router, error) {
 	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
@@ -47,23 +47,23 @@ func NewWatermillRouter(
 		eventHandler.PostTicketBookingHandler(),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnBookingMade",
-			opsBookingReadModelHandlers.OnBookingMade,
+			opsReadModel.OnBookingMade,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketReceiptIssued",
-			opsBookingReadModelHandlers.OnTicketReceiptIssued,
+			opsReadModel.OnTicketReceiptIssued,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketBookingConfirmed",
-			opsBookingReadModelHandlers.OnTicketBookingConfirmed,
+			opsReadModel.OnTicketBookingConfirmed,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketPrinted",
-			opsBookingReadModelHandlers.OnTicketPrinted,
+			opsReadModel.OnTicketPrinted,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketRefunded",
-			opsBookingReadModelHandlers.OnTicketRefunded,
+			opsReadModel.OnTicketRefunded,
 		),
 	)
 	if err != nil {
