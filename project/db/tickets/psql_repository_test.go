@@ -14,7 +14,10 @@ import (
 
 func TestTicketsRepository_Add_idempotency(t *testing.T) {
 	ctx := context.Background()
+	container, url := dbutils.StartPostgresContainer()
+	defer container.Terminate(ctx)
 
+	t.Setenv("POSTGRES_URL", url)
 	db := dbutils.GetDb(t)
 	repo := NewPostgresRepository(db)
 
