@@ -37,6 +37,13 @@ func InitializeDatabaseSchema(db *sqlx.DB) error {
 			booking_id UUID PRIMARY KEY,
 			payload JSONB NOT NULL
 		);
+
+		CREATE TABLE IF NOT EXISTS events (
+			event_id UUID PRIMARY KEY,
+			published_at TIMESTAMP NOT NULL,
+			event_name VARCHAR(255) NOT NULL,
+			event_payload JSONB NOT NULL
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("could not initialize database schema: %w", err)

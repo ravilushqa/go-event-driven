@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ThreeDotsLabs/watermill"
@@ -8,10 +9,15 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 
 	"tickets/db/read_model_ops_bookings"
+	"tickets/entity"
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
 	"tickets/pubsub/outbox"
 )
+
+type DataLake interface {
+	Store(ctx context.Context, event entity.Event) error
+}
 
 func NewWatermillRouter(
 	postgresSubscriber message.Subscriber,
@@ -22,6 +28,7 @@ func NewWatermillRouter(
 	commandProcessorConfig cqrs.CommandProcessorConfig,
 	commandsHandler command.Handler,
 	opsReadModel read_model_ops_bookings.OpsBookingReadModel,
+	dataLake DataLake,
 	watermillLogger watermill.LoggerAdapter,
 ) (*message.Router, error) {
 	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
@@ -94,6 +101,32 @@ func NewWatermillRouter(
 			}
 
 			return redisPublisher.Publish("events."+eventName, msg)
+		},
+	)
+
+	router.AddNoPublisherHandler(
+		"send_to_data_lake",
+		"events",
+		redisSubscriber,
+		func(msg *message.Message) error {
+			// We just need to unmarshal the event header; the rest is stored as is.
+			type Event struct {
+				Header entity.EventHeader `json:"header"`
+			}
+
+			var e Event
+			if err := eventProcessorConfig.Marshaler.Unmarshal(msg, &e); err != nil {
+				return fmt.Errorf("cannot unmarshal event: %w", err)
+			}
+
+			eventModel := entity.Event{
+				ID:          e.Header.ID,
+				PublishedAt: e.Header.PublishedAt,
+				Name:        eventProcessorConfig.Marshaler.NameFromMessage(msg),
+				Payload:     msg.Payload,
+			}
+
+			return dataLake.Store(msg.Context(), eventModel)
 		},
 	)
 

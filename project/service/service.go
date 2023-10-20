@@ -15,6 +15,7 @@ import (
 
 	"tickets/db"
 	"tickets/db/bookings"
+	"tickets/db/events"
 	"tickets/db/read_model_ops_bookings"
 	"tickets/db/shows"
 	"tickets/db/tickets"
@@ -92,7 +93,11 @@ func New(
 		Client:        redisClient,
 		ConsumerGroup: "svc-tickets.events",
 	}, watermillLogger)
+	if err != nil {
+		panic(fmt.Errorf("failed to create redis subscriber: %w", err))
+	}
 
+	dataLake := events.NewPostgresRepository(db)
 	watermillRouter, err := pubsub.NewWatermillRouter(
 		postgresSubscriber,
 		redisPublisher,
@@ -102,6 +107,7 @@ func New(
 		commandProcessorConfig,
 		commandsHandler,
 		opsReadModel,
+		dataLake,
 		watermillLogger,
 	)
 	if err != nil {
