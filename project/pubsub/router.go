@@ -15,7 +15,8 @@ import (
 
 func NewWatermillRouter(
 	postgresSubscriber message.Subscriber,
-	publisher message.Publisher,
+	redisPublisher message.Publisher,
+	redisSubscriber message.Subscriber,
 	eventProcessorConfig cqrs.EventProcessorConfig,
 	eventHandler event.Handler,
 	commandProcessorConfig cqrs.CommandProcessorConfig,
@@ -30,7 +31,7 @@ func NewWatermillRouter(
 
 	useMiddlewares(router, watermillLogger)
 
-	outbox.AddForwarderHandler(postgresSubscriber, publisher, router, watermillLogger)
+	outbox.AddForwarderHandler(postgresSubscriber, redisPublisher, router, watermillLogger)
 
 	eventProcessor, err := cqrs.NewEventProcessorWithConfig(router, eventProcessorConfig)
 	if err != nil {
@@ -81,6 +82,20 @@ func NewWatermillRouter(
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to command processor: %w", err)
 	}
+
+	router.AddNoPublisherHandler(
+		"events_splitter",
+		"events",
+		redisSubscriber,
+		func(msg *message.Message) error {
+			eventName := eventProcessorConfig.Marshaler.NameFromMessage(msg)
+			if eventName == "" {
+				return fmt.Errorf("could not get event name from message")
+			}
+
+			return redisPublisher.Publish("events."+eventName, msg)
+		},
+	)
 
 	return router, nil
 }

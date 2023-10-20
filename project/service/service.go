@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
+	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -87,9 +88,15 @@ func New(
 	eventProcessorConfig := event.NewProcessorConfig(redisClient, watermillLogger)
 	commandProcessorConfig := command.NewProcessorConfig(redisClient, watermillLogger)
 
+	redisSubscriber, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
+		Client:        redisClient,
+		ConsumerGroup: "svc-tickets.events",
+	}, watermillLogger)
+
 	watermillRouter, err := pubsub.NewWatermillRouter(
 		postgresSubscriber,
 		redisPublisher,
+		redisSubscriber,
 		eventProcessorConfig,
 		eventsHandler,
 		commandProcessorConfig,
