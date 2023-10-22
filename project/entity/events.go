@@ -27,7 +27,7 @@ func NewEventHeaderWithIdempotencyKey(idempotencyKey string) EventHeader {
 	}
 }
 
-type TicketBookingConfirmed struct {
+type TicketBookingConfirmed_v1 struct {
 	Header        EventHeader `json:"header"`
 	TicketID      string      `json:"ticket_id"`
 	CustomerEmail string      `json:"customer_email"`
@@ -35,7 +35,7 @@ type TicketBookingConfirmed struct {
 	BookingID     string      `json:"booking_id"`
 }
 
-type TicketBookingCanceled struct {
+type TicketBookingCanceled_v1 struct {
 	Header        EventHeader `json:"header"`
 	TicketID      string      `json:"ticket_id"`
 	CustomerEmail string      `json:"customer_email"`
@@ -43,13 +43,13 @@ type TicketBookingCanceled struct {
 	BookingID     string      `json:"booking_id"`
 }
 
-type TicketPrinted struct {
+type TicketPrinted_v1 struct {
 	Header   EventHeader `json:"header"`
 	TicketID string      `json:"ticket_id"`
 	FileName string      `json:"file_name"`
 }
 
-type BookingMade struct {
+type BookingMade_v1 struct {
 	Header          EventHeader `json:"header"`
 	BookingID       string      `json:"booking_id"`
 	NumberOfTickets int         `json:"number_of_tickets"`
@@ -57,14 +57,14 @@ type BookingMade struct {
 	ShowID          string      `json:"show_id"`
 }
 
-type TicketReceiptIssued struct {
+type TicketReceiptIssued_v1 struct {
 	Header        EventHeader `json:"header"`
 	TicketID      string      `json:"ticket_id"`
 	ReceiptNumber string      `json:"receipt_number"`
 	IssuedAt      time.Time   `json:"issued_at"`
 }
 
-type TicketRefunded struct {
+type TicketRefunded_v1 struct {
 	Header   EventHeader `json:"header"`
 	TicketID string      `json:"ticket_id"`
 }

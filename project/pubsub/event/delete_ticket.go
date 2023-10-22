@@ -12,7 +12,7 @@ import (
 func (h Handler) DeleteTicketHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"DeleteTicketHandler",
-		func(ctx context.Context, event *entity.TicketBookingCanceled) error {
+		func(ctx context.Context, event *entity.TicketBookingCanceled_v1) error {
 			log.FromContext(ctx).Info("Deleting ticket from DB")
 			return h.ticketsRepository.Delete(ctx, event.TicketID)
 		},

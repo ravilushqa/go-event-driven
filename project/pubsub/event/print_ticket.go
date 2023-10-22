@@ -13,7 +13,7 @@ import (
 func (h Handler) PrintTicketHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"PrintTicketHandler",
-		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
+		func(ctx context.Context, event *entity.TicketBookingConfirmed_v1) error {
 			log.FromContext(ctx).Info("Printing ticket")
 
 			ticketHTML := `
@@ -34,7 +34,7 @@ func (h Handler) PrintTicketHandler() cqrs.EventHandler {
 				return err
 			}
 
-			ticketPrinter := entity.TicketPrinted{
+			ticketPrinter := entity.TicketPrinted_v1{
 				Header:   entity.NewEventHeader(),
 				TicketID: event.TicketID,
 				FileName: fileID,

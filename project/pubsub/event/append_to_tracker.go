@@ -12,7 +12,7 @@ import (
 func (h Handler) AppendToTrackerHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"AppendToTrackerHandler",
-		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
+		func(ctx context.Context, event *entity.TicketBookingConfirmed_v1) error {
 			log.FromContext(ctx).Info("Appending ticket to the tracker")
 			return h.spreadsheetsService.AppendRow(
 				ctx,

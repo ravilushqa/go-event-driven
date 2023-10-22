@@ -13,7 +13,7 @@ import (
 func (h Handler) IssueReceiptHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"IssueReceiptHandler",
-		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
+		func(ctx context.Context, event *entity.TicketBookingConfirmed_v1) error {
 			log.FromContext(ctx).Info("Issuing receipt")
 			request := entity.IssueReceiptRequest{
 				TicketID:       event.TicketID,
@@ -26,7 +26,7 @@ func (h Handler) IssueReceiptHandler() cqrs.EventHandler {
 				return fmt.Errorf("failed to issue receipt: %w", err)
 			}
 
-			return h.eventbus.Publish(ctx, entity.TicketReceiptIssued{
+			return h.eventbus.Publish(ctx, entity.TicketReceiptIssued_v1{
 				Header:        entity.NewEventHeaderWithIdempotencyKey(event.Header.IdempotencyKey),
 				TicketID:      event.TicketID,
 				ReceiptNumber: resp.ReceiptNumber,

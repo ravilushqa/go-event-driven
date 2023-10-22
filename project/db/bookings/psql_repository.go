@@ -68,7 +68,7 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, 
 		return err
 	}
 
-	err = eventBus.Publish(ctx, entity.BookingMade{
+	err = eventBus.Publish(ctx, entity.BookingMade_v1{
 		Header:          entity.NewEventHeader(),
 		BookingID:       booking.BookingID,
 		NumberOfTickets: booking.NumberOfTickets,

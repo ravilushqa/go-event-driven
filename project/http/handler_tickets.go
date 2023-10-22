@@ -53,7 +53,7 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 
 	for _, ticket := range request.Tickets {
 		if ticket.Status == "confirmed" {
-			event := entity.TicketBookingConfirmed{
+			event := entity.TicketBookingConfirmed_v1{
 				Header:        entity.NewEventHeaderWithIdempotencyKey(idempotencyKey + ticket.TicketID),
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
@@ -66,7 +66,7 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 				return err
 			}
 		} else if ticket.Status == "canceled" {
-			event := entity.TicketBookingCanceled{
+			event := entity.TicketBookingCanceled_v1{
 				Header:        entity.NewEventHeaderWithIdempotencyKey(idempotencyKey + ticket.TicketID),
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,

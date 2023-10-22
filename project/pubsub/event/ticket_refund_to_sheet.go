@@ -12,7 +12,7 @@ import (
 func (h Handler) CancelTicketHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"CancelTicketHandler",
-		func(ctx context.Context, event *entity.TicketBookingCanceled) error {
+		func(ctx context.Context, event *entity.TicketBookingCanceled_v1) error {
 			log.FromContext(ctx).Info("Adding ticket refund to sheet")
 			return h.spreadsheetsService.AppendRow(
 				ctx,

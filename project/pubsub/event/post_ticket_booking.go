@@ -13,7 +13,7 @@ import (
 func (h Handler) PostTicketBookingHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"PostTicketBookingHandler",
-		func(ctx context.Context, event *entity.BookingMade) error {
+		func(ctx context.Context, event *entity.BookingMade_v1) error {
 			log.FromContext(ctx).Info("Posting ticket booking to Dead Nation")
 
 			show, err := h.showsRepo.Get(ctx, event.ShowID)

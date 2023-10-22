@@ -12,7 +12,7 @@ import (
 func (h Handler) StoreTicketHandler() cqrs.EventHandler {
 	return cqrs.NewEventHandler(
 		"StoreTicketHandler",
-		func(ctx context.Context, event *entity.TicketBookingConfirmed) error {
+		func(ctx context.Context, event *entity.TicketBookingConfirmed_v1) error {
 			log.FromContext(ctx).Info("Storing ticket in DB")
 			return h.ticketsRepository.Store(ctx, entity.Ticket{
 				TicketID:      event.TicketID,
