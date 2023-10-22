@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 
@@ -20,11 +21,27 @@ func NewPostgresRepository(db *sqlx.DB) PostgresRepository {
 	return PostgresRepository{db: db}
 }
 
-func (r PostgresRepository) Store(ctx context.Context, event entity.Event) error {
-	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO events (event_id, published_at, event_name, event_payload)
-		VALUES (:event_id, :published_at, :event_name, :event_payload)
-		ON CONFLICT DO NOTHING -- ignore if already exists
-	`, event)
-	return err
+func (r PostgresRepository) Store(ctx context.Context,
+	eventID string,
+	eventHeader entity.EventHeader,
+	eventName string,
+	payload []byte,
+) error {
+	_, err := r.db.ExecContext(
+		ctx,
+		`INSERT INTO events
+			(event_id, published_at, event_name, event_payload)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (event_id) DO NOTHING;
+		`,
+		eventID,
+		eventHeader.PublishedAt,
+		eventName,
+		payload,
+	)
+	if err != nil {
+		return fmt.Errorf("could not store %s event in data lake: %w", eventID, err)
+	}
+
+	return nil
 }

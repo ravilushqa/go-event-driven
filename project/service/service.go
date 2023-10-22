@@ -90,8 +90,7 @@ func New(
 	commandProcessorConfig := command.NewProcessorConfig(redisClient, watermillLogger)
 
 	redisSubscriber, err := redisstream.NewSubscriber(redisstream.SubscriberConfig{
-		Client:        redisClient,
-		ConsumerGroup: "svc-tickets.events",
+		Client: redisClient,
 	}, watermillLogger)
 	if err != nil {
 		panic(fmt.Errorf("failed to create redis subscriber: %w", err))

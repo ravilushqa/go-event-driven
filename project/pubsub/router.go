@@ -16,7 +16,7 @@ import (
 )
 
 type DataLake interface {
-	Store(ctx context.Context, event entity.Event) error
+	Store(ctx context.Context, id string, header entity.EventHeader, eventName string, payload []byte) error
 }
 
 func NewWatermillRouter(
@@ -100,33 +100,39 @@ func NewWatermillRouter(
 				return fmt.Errorf("could not get event name from message")
 			}
 
-			return redisPublisher.Publish("events."+eventName, msg)
+			topic := "events." + eventName
+
+			return redisPublisher.Publish(topic, msg)
 		},
 	)
 
 	router.AddNoPublisherHandler(
-		"send_to_data_lake",
+		"store_to_data_lake",
 		"events",
 		redisSubscriber,
 		func(msg *message.Message) error {
-			// We just need to unmarshal the event header; the rest is stored as is.
+			eventName := eventProcessorConfig.Marshaler.NameFromMessage(msg)
+			if eventName == "" {
+				return fmt.Errorf("could not get event name from message")
+			}
+
+			// we just need to unmarshal event header, rest is stored as is
 			type Event struct {
 				Header entity.EventHeader `json:"header"`
 			}
 
-			var e Event
-			if err := eventProcessorConfig.Marshaler.Unmarshal(msg, &e); err != nil {
-				return fmt.Errorf("cannot unmarshal event: %w", err)
+			var event Event
+			if err := eventProcessorConfig.Marshaler.Unmarshal(msg, &event); err != nil {
+				return fmt.Errorf("could not unmarshal event: %w", err)
 			}
 
-			eventModel := entity.Event{
-				ID:          e.Header.ID,
-				PublishedAt: e.Header.PublishedAt,
-				Name:        eventProcessorConfig.Marshaler.NameFromMessage(msg),
-				Payload:     msg.Payload,
-			}
-
-			return dataLake.Store(msg.Context(), eventModel)
+			return dataLake.Store(
+				msg.Context(),
+				event.Header.ID,
+				event.Header,
+				eventName,
+				msg.Payload,
+			)
 		},
 	)
 
