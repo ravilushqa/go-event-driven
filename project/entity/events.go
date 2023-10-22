@@ -6,6 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type EventInterface interface {
+	IsInternal() bool
+}
+
 type EventHeader struct {
 	ID             string    `json:"id"`
 	PublishedAt    time.Time `json:"published_at"`
@@ -35,6 +39,10 @@ type TicketBookingConfirmed_v1 struct {
 	BookingID     string      `json:"booking_id"`
 }
 
+func (e TicketBookingConfirmed_v1) IsInternal() bool {
+	return false
+}
+
 type TicketBookingCanceled_v1 struct {
 	Header        EventHeader `json:"header"`
 	TicketID      string      `json:"ticket_id"`
@@ -43,10 +51,18 @@ type TicketBookingCanceled_v1 struct {
 	BookingID     string      `json:"booking_id"`
 }
 
+func (e TicketBookingCanceled_v1) IsInternal() bool {
+	return false
+}
+
 type TicketPrinted_v1 struct {
 	Header   EventHeader `json:"header"`
 	TicketID string      `json:"ticket_id"`
 	FileName string      `json:"file_name"`
+}
+
+func (e TicketPrinted_v1) IsInternal() bool {
+	return false
 }
 
 type BookingMade_v1 struct {
@@ -57,6 +73,10 @@ type BookingMade_v1 struct {
 	ShowID          string      `json:"show_id"`
 }
 
+func (e BookingMade_v1) IsInternal() bool {
+	return false
+}
+
 type TicketReceiptIssued_v1 struct {
 	Header        EventHeader `json:"header"`
 	TicketID      string      `json:"ticket_id"`
@@ -64,7 +84,24 @@ type TicketReceiptIssued_v1 struct {
 	IssuedAt      time.Time   `json:"issued_at"`
 }
 
+func (e TicketReceiptIssued_v1) IsInternal() bool {
+	return false
+}
+
 type TicketRefunded_v1 struct {
 	Header   EventHeader `json:"header"`
 	TicketID string      `json:"ticket_id"`
+}
+
+func (e TicketRefunded_v1) IsInternal() bool {
+	return false
+}
+
+type InternalOpsReadModelUpdated struct {
+	Header    EventHeader `json:"header"`
+	BookingID string      `json:"booking_id"`
+}
+
+func (e InternalOpsReadModelUpdated) IsInternal() bool {
+	return true
 }

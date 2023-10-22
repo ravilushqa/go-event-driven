@@ -47,14 +47,9 @@ func New(
 	deadNationService event.DeadNationService,
 	paymentService event.PaymentService,
 ) Service {
-	ticketsRepo := tickets.NewPostgresRepository(db)
-	showsRepo := shows.NewPostgresRepository(db)
-	bookingsRepo := bookings.NewPostgresRepository(db)
-	opsReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db)
+	var redisPublisher message.Publisher
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
-
-	var redisPublisher message.Publisher
 	redisPublisher = pubsub.NewRedisPublisher(redisClient, watermillLogger)
 	redisPublisher = log.CorrelationPublisherDecorator{Publisher: redisPublisher}
 
@@ -62,6 +57,11 @@ func New(
 	if err != nil {
 		panic(fmt.Errorf("failed to create event bus: %w", err))
 	}
+
+	ticketsRepo := tickets.NewPostgresRepository(db)
+	showsRepo := shows.NewPostgresRepository(db)
+	bookingsRepo := bookings.NewPostgresRepository(db)
+	opsReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db, eventBus)
 
 	eventsHandler := event.NewHandler(
 		eventBus,

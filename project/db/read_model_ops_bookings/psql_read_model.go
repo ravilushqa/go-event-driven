@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+
 	"tickets/entity"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
@@ -15,15 +17,19 @@ import (
 )
 
 type OpsBookingReadModel struct {
-	db *sqlx.DB
+	db       *sqlx.DB
+	eventBus *cqrs.EventBus
 }
 
-func NewOpsBookingReadModel(db *sqlx.DB) OpsBookingReadModel {
+func NewOpsBookingReadModel(db *sqlx.DB, eventBus *cqrs.EventBus) OpsBookingReadModel {
 	if db == nil {
 		panic("db is nil")
 	}
+	if eventBus == nil {
+		panic("eventBus is nil")
+	}
 
-	return OpsBookingReadModel{db: db}
+	return OpsBookingReadModel{db: db, eventBus: eventBus}
 }
 
 func (r OpsBookingReadModel) AllReservations(receiptIssueDateFilter string) ([]entity.OpsBooking, error) {
@@ -201,7 +207,19 @@ func (r OpsBookingReadModel) updateBookingReadModel(
 				return err
 			}
 
-			return r.updateReadModel(ctx, tx, updatedRm)
+			err = r.updateReadModel(ctx, tx, updatedRm)
+			if err != nil {
+				return err
+			}
+
+			err = r.eventBus.Publish(ctx, entity.InternalOpsReadModelUpdated{
+				Header:    entity.NewEventHeader(),
+				BookingID: bookingID,
+			})
+			if err != nil {
+				log.FromContext(ctx).Errorf("could not publish event InternalOpsReadModelUpdated: %s", err)
+			}
+			return nil
 		},
 	)
 }
