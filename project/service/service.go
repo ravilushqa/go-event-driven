@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -26,6 +29,15 @@ import (
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
 	"tickets/pubsub/outbox"
+)
+
+var (
+	veryImportantCounter = promauto.NewCounter(prometheus.CounterOpts{
+		// metric will be named tickets_very_important_counter_total
+		Namespace: "tickets",
+		Name:      "very_important_counter_total",
+		Help:      "Total number of very important things processed",
+	})
 )
 
 func init() {
@@ -144,6 +156,18 @@ func (s Service) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				veryImportantCounter.Inc()
+				time.Sleep(time.Millisecond * 100)
+			}
+		}
+	})
+
+	g.Go(func() error {
 		err := migrations.MigrateReadModel(ctx, s.dataLake, s.opsReadModel)
 		if err != nil {
 			log.FromContext(ctx).Errorf("failed to migrate read model: %s", err)
@@ -169,108 +193,3 @@ func (s Service) Run(ctx context.Context) error {
 
 	return g.Wait()
 }
-
-//func migrateDB(ctx context.Context, dbConn *sqlx.DB, opsReadModel read_model_ops_bookings.OpsBookingReadModel) error {
-//	err := db.InitializeDatabaseSchema(dbConn)
-//	if err != nil {
-//		return err
-//	}
-//	l := log.FromContext(ctx)
-//
-//	var events []entity.DataLakeEvent
-//	for {
-//		l.Info("Waiting for events table to be created")
-//		err = dbConn.Select(&events, "SELECT * FROM events")
-//		if err != nil {
-//			return err
-//		}
-//
-//		if len(events) != 0 {
-//			l.Infof("Events table created, %d events found", len(events))
-//			break
-//		}
-//
-//		time.Sleep(1 * time.Second)
-//	}
-//
-//	for _, e := range events {
-//		l.Infof("Migrating event %s(%s)", e.Name, e.ID)
-//		l.Debugf("Event payload: %s", string(e.Payload))
-//		if strings.HasPrefix(e.Name, "BookingMade") {
-//			eventModel := entity.BookingMade_v1{}
-//			err := json.Unmarshal(e.Payload, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to unmarshal event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//
-//			err = opsReadModel.OnBookingMade(ctx, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to migrate event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//		}
-//
-//		if strings.HasPrefix(e.Name, "TicketBookingConfirmed") {
-//			eventModel := entity.TicketBookingConfirmed_v1{}
-//			err := json.Unmarshal(e.Payload, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to unmarshal event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//
-//			err = opsReadModel.OnTicketBookingConfirmed(ctx, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to migrate event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//		}
-//
-//		if strings.HasPrefix(e.Name, "TicketReceiptIssued") {
-//			eventModel := entity.TicketReceiptIssued_v1{}
-//			err := json.Unmarshal(e.Payload, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to unmarshal event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//
-//			err = opsReadModel.OnTicketReceiptIssued(ctx, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to migrate event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//		}
-//
-//		if strings.HasPrefix(e.Name, "TicketRefunded") {
-//			eventModel := entity.TicketRefunded_v1{}
-//			err := json.Unmarshal(e.Payload, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to unmarshal event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//
-//			err = opsReadModel.OnTicketRefunded(ctx, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to migrate event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//		}
-//
-//		if strings.HasPrefix(e.Name, "TicketPrinted") {
-//			eventModel := entity.TicketPrinted_v1{}
-//			err := json.Unmarshal(e.Payload, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to unmarshal event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//
-//			err = opsReadModel.OnTicketPrinted(ctx, &eventModel)
-//			if err != nil {
-//				l.Errorf("Failed to migrate event %s(%s): %s", e.Name, e.ID, err)
-//				continue
-//			}
-//		}
-//	}
-//
-//	return nil
-//}

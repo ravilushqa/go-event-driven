@@ -9,6 +9,7 @@ import (
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 	"github.com/labstack/echo/v4"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"tickets/entity"
 )
@@ -74,6 +75,7 @@ func NewServer(
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 	e.GET("/ops/bookings", server.GetOpsTickets)
 	e.GET("/ops/bookings/:id", server.GetOpsTicket)
