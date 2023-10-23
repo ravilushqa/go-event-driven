@@ -1,3 +1,3 @@
-exercise_id = "3966a7d1-79bc-4c28-9d00-3bed39abe3a5"
-directory = "19-tracing/02-tracing-attributes"
+exercise_id = "742ed509-43b2-40a8-85cd-40c828f031ae"
+directory = "19-tracing/03-propagating-tracing-in-message"
 is_text_only = false
