@@ -12,7 +12,7 @@ import (
 func NewEventBus(pub message.Publisher) (*cqrs.EventBus, error) {
 	return cqrs.NewEventBusWithConfig(pub, cqrs.EventBusConfig{
 		GeneratePublishTopic: func(params cqrs.GenerateEventPublishTopicParams) (string, error) {
-			event, ok := params.Event.(entity.EventInterface)
+			event, ok := params.Event.(entity.Event)
 			if !ok {
 				return "", fmt.Errorf("invalid event type: %T doesn't implement entities.Event", params.Event)
 			}

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type EventInterface interface {
+type Event interface {
 	IsInternal() bool
 }
 

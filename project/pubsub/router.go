@@ -16,7 +16,7 @@ import (
 )
 
 type DataLake interface {
-	Store(ctx context.Context, id string, header entity.EventHeader, eventName string, payload []byte) error
+	StoreEvent(ctx context.Context, dataLakeEvent entity.DataLakeEvent) error
 }
 
 func NewWatermillRouter(
@@ -126,12 +126,14 @@ func NewWatermillRouter(
 				return fmt.Errorf("could not unmarshal event: %w", err)
 			}
 
-			return dataLake.Store(
+			return dataLake.StoreEvent(
 				msg.Context(),
-				event.Header.ID,
-				event.Header,
-				eventName,
-				msg.Payload,
+				entity.DataLakeEvent{
+					ID:          event.Header.ID,
+					PublishedAt: event.Header.PublishedAt,
+					Name:        eventName,
+					Payload:     msg.Payload,
+				},
 			)
 		},
 	)

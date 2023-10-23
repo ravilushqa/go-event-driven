@@ -20,7 +20,7 @@ func NewProcessorConfig(redisClient *redis.Client, watermillLogger watermill.Log
 	return cqrs.EventProcessorConfig{
 		GenerateSubscribeTopic: func(params cqrs.EventProcessorGenerateSubscribeTopicParams) (string, error) {
 			handlerEvent := params.EventHandler.NewEvent()
-			event, ok := handlerEvent.(entity.EventInterface)
+			event, ok := handlerEvent.(entity.Event)
 			if !ok {
 				return "", fmt.Errorf("invalid event type: %T doesn't implement entities.Event", handlerEvent)
 			}
