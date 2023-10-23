@@ -1,3 +1,3 @@
-exercise_id = "51666a99-408f-40d1-ac95-272f0456ab92"
-directory = "20-fault-tolerance/02-throttling"
+exercise_id = "5e46fcb2-56d3-4246-a6d1-da67ed37a51a"
+directory = "20-fault-tolerance/03-circuit-breaker"
 is_text_only = false
