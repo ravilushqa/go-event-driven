@@ -1,11 +1,12 @@
 package pubsub
 
 import (
-	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/redis/go-redis/v9"
+
+	"tickets/tracing"
 )
 
 func NewRedisPublisher(rdb *redis.Client, watermillLogger watermill.LoggerAdapter) message.Publisher {
@@ -17,6 +18,6 @@ func NewRedisPublisher(rdb *redis.Client, watermillLogger watermill.LoggerAdapte
 		panic(err)
 	}
 
-	publisher = log.CorrelationPublisherDecorator{Publisher: publisher}
+	publisher = tracing.PublisherDecorator{Publisher: publisher}
 	return publisher
 }

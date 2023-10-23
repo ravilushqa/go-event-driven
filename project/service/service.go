@@ -30,6 +30,7 @@ import (
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
 	"tickets/pubsub/outbox"
+	"tickets/tracing"
 )
 
 var (
@@ -69,7 +70,7 @@ func New(
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
 	redisPublisher = pubsub.NewRedisPublisher(redisClient, watermillLogger)
-	redisPublisher = log.CorrelationPublisherDecorator{Publisher: redisPublisher}
+	redisPublisher = tracing.PublisherDecorator{Publisher: redisPublisher}
 
 	eventBus, err := bus.NewEventBus(redisPublisher)
 	if err != nil {

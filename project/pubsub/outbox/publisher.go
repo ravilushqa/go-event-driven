@@ -9,6 +9,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/forwarder"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/jmoiron/sqlx"
+
+	"tickets/tracing"
 )
 
 func NewPublisherForDb(ctx context.Context, db *sqlx.Tx) (message.Publisher, error) {
@@ -26,12 +28,12 @@ func NewPublisherForDb(ctx context.Context, db *sqlx.Tx) (message.Publisher, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to create outbox publisher: %w", err)
 	}
-	publisher = log.CorrelationPublisherDecorator{Publisher: publisher}
+	publisher = tracing.PublisherDecorator{Publisher: publisher}
 
 	publisher = forwarder.NewPublisher(publisher, forwarder.PublisherConfig{
 		ForwarderTopic: outboxTopic,
 	})
-	publisher = log.CorrelationPublisherDecorator{Publisher: publisher}
+	publisher = tracing.PublisherDecorator{Publisher: publisher}
 
 	return publisher, nil
 }

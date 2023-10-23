@@ -6,6 +6,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/forwarder"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func AddForwarderHandler(
@@ -24,10 +25,12 @@ func AddForwarderHandler(
 			Middlewares: []message.HandlerMiddleware{
 				func(h message.HandlerFunc) message.HandlerFunc {
 					return func(msg *message.Message) ([]*message.Message, error) {
+						traceID := trace.SpanFromContext(msg.Context()).SpanContext().TraceID().String()
 						log.FromContext(msg.Context()).WithFields(logrus.Fields{
 							"message_id": msg.UUID,
 							"payload":    string(msg.Payload),
 							"metadata":   msg.Metadata,
+							"trace_id":   traceID,
 						}).Info("Forwarding message")
 
 						return h(msg)

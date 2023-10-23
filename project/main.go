@@ -60,7 +60,6 @@ func main() {
 	apiClients, err := clients.NewClientsWithHttpClient(
 		opts.GatewayAddr,
 		func(ctx context.Context, req *http.Request) error {
-			req.Header.Set("Correlation-ID", log.CorrelationIDFromContext(ctx))
 			return nil
 		},
 		traceHttpClient,
