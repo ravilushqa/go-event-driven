@@ -10,6 +10,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"tickets/entity"
 )
@@ -72,6 +73,7 @@ func NewServer(
 		opsBookingReadModel:   opsBookingReadModel,
 	}
 
+	e.Use(otelecho.Middleware("http-server"))
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})

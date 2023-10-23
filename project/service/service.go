@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
 
 	dbLib "tickets/db"
@@ -50,6 +51,7 @@ type Service struct {
 	httpServer      *http.Server
 	opsReadModel    read_model_ops_bookings.OpsBookingReadModel
 	dataLake        dl.DataLake
+	traceProvider   *tracesdk.TracerProvider
 }
 
 func New(
@@ -61,6 +63,7 @@ func New(
 	fileService event.FileService,
 	deadNationService event.DeadNationService,
 	paymentService event.PaymentService,
+	traceProvider *tracesdk.TracerProvider,
 ) Service {
 	var redisPublisher message.Publisher
 
@@ -145,6 +148,7 @@ func New(
 		httpServer,
 		opsReadModel,
 		dataLake,
+		traceProvider,
 	}
 }
 
@@ -173,6 +177,11 @@ func (s Service) Run(ctx context.Context) error {
 			log.FromContext(ctx).Errorf("failed to migrate read model: %s", err)
 		}
 		return nil
+	})
+
+	g.Go(func() error {
+		<-ctx.Done()
+		return s.traceProvider.Shutdown(context.Background())
 	})
 
 	g.Go(func() error {

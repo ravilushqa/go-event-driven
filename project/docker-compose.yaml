@@ -13,10 +13,9 @@ services:
       - "host.docker.internal:host-gateway"
 
   redis:
-    image: redis/redis-stack:latest
+    image: redis:6.2-alpine
     ports:
       - "6379:6379"
-      - "8001:8001"
 
   postgres:
     image: postgres:15.2-alpine
@@ -27,31 +26,8 @@ services:
     ports:
       - "5432:5432"
 
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
     ports:
-      - 9090:9090
-    restart: unless-stopped
-    volumes:
-      - ./docker/prometheus:/etc/prometheus
-      - prom_data:/prometheus
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    ports:
-      - 3000:3000
-    restart: unless-stopped
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - ./docker/grafana:/etc/grafana/provisioning/datasources
-
-volumes:
-  prom_data:
+      - '16686:16686'
+      - '14268:14268'
