@@ -7,7 +7,10 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+
+	"tickets/metrics"
 )
 
 func useMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdapter) {
@@ -36,6 +39,27 @@ func useMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdap
 				logger.WithError(err).Error("Error while handling a message")
 			}
 
+			return msgs, err
+		}
+	})
+
+	router.AddMiddleware(func(next message.HandlerFunc) message.HandlerFunc {
+		return func(msg *message.Message) ([]*message.Message, error) {
+			now := time.Now()
+			topic := message.SubscribeTopicFromCtx(msg.Context())
+			handler := message.HandlerNameFromCtx(msg.Context())
+			labels := prometheus.Labels{"topic": topic, "handler": handler}
+			var err error
+			defer func() {
+				if err != nil {
+					metrics.MessagesProcessingFailed.With(labels).Inc()
+				}
+				metrics.MessagesProcessed.With(labels).Inc()
+				metrics.MessagesProcessingDuration.With(labels).Observe(time.Since(now).Seconds())
+
+			}()
+
+			msgs, err := next(msg)
 			return msgs, err
 		}
 	})
