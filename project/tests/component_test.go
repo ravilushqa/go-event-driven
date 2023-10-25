@@ -16,6 +16,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/goleak"
 
 	"tickets/db/tickets"
@@ -54,6 +55,8 @@ func TestComponent(t *testing.T) {
 	deadNationClient := &gateway.DeadNationMock{}
 	paymentClient := &gateway.PaymentMock{}
 
+	traceProvider := trace.NewTracerProvider()
+
 	go func() {
 		svc := service.New(
 			httpAddress,
@@ -64,6 +67,7 @@ func TestComponent(t *testing.T) {
 			filesClient,
 			deadNationClient,
 			paymentClient,
+			traceProvider,
 		)
 		assert.NoError(t, svc.Run(ctx))
 	}()
