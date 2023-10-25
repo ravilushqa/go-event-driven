@@ -1,3 +1,3 @@
-exercise_id = "cd4f0cdf-1d8d-477f-bcb5-d1a34b000e59"
-directory = "20-fault-tolerance/04-poison-queue"
+exercise_id = "a2ae2371-2fde-4626-b6e4-ac49e8ccfec2"
+directory = "poison-queue-cli"
 is_text_only = false
