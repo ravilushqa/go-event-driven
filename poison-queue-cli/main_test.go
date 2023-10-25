@@ -51,7 +51,7 @@ func Test(t *testing.T) {
 
 	var uuids []string
 	for i := 0; i < 10; i++ {
-		msg := message.NewMessage(uuid.NewString(), []byte("{}"))
+		msg := message.NewMessage(watermill.NewUUID(), []byte("{}"))
 		msg.Metadata.Set(middleware.ReasonForPoisonedKey, "network down")
 		if err := pub.Publish(PoisonQueueTopic, msg); err != nil {
 			t.Fatal(err)
@@ -60,8 +60,31 @@ func Test(t *testing.T) {
 	}
 
 	assertMessages(t, uuids)
-	// Check if no messages were lost
-	assertMessages(t, uuids)
+
+	remove(t, uuids[0])
+	remove(t, uuids[4])
+	remove(t, uuids[9])
+
+	h, err := NewHandler()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = h.Remove(context.Background(), uuid.NewString())
+	if err == nil {
+		t.Fatal("expected to fail when removing unknown message ID")
+	}
+
+	expectedUUIDs := []string{
+		uuids[1],
+		uuids[2],
+		uuids[3],
+		uuids[5],
+		uuids[6],
+		uuids[7],
+		uuids[8],
+	}
+
+	assertMessages(t, expectedUUIDs)
 }
 
 func assertMessages(t *testing.T, expectedUUIDs []string) {
@@ -96,5 +119,19 @@ func assertMessages(t *testing.T, expectedUUIDs []string) {
 		if !found {
 			t.Fatalf("expected message with uuid %s, but not found", uuid)
 		}
+	}
+}
+
+func remove(t *testing.T, id string) {
+	t.Helper()
+
+	h, err := NewHandler()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = h.Remove(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

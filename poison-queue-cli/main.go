@@ -103,6 +103,45 @@ func (h *Handler) Preview(ctx context.Context) ([]Message, error) {
 	return result, nil
 }
 
+func (h *Handler) Remove(ctx context.Context, messageID string) error {
+	messages, err := h.subscriber.Subscribe(ctx, PoisonQueueTopic)
+	if err != nil {
+		return err
+	}
+	defer h.subscriber.Close()
+
+	firstID := ""
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		for msg := range messages {
+			if firstID == msg.UUID {
+				return fmt.Errorf("message %s not found", messageID)
+			}
+			fmt.Println(msg.UUID)
+			if firstID == "" {
+				firstID = msg.UUID
+			}
+
+			if msg.UUID == messageID {
+				msg.Ack()
+				return nil
+			}
+
+			err = h.publisher.Publish(PoisonQueueTopic, msg)
+			if err != nil {
+				return err
+			}
+
+			msg.Ack()
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	app := &cli.App{
 		Name:  "poison-queue-cli",
@@ -124,6 +163,24 @@ func main() {
 
 					for _, m := range messages {
 						fmt.Printf("%v\t%v\n", m.ID, m.Reason)
+					}
+
+					return nil
+				},
+			},
+			{
+				Name:      "remove",
+				ArgsUsage: "<message_id>",
+				Usage:     "remove message",
+				Action: func(c *cli.Context) error {
+					h, err := NewHandler()
+					if err != nil {
+						return err
+					}
+
+					err = h.Remove(c.Context, c.Args().First())
+					if err != nil {
+						return err
 					}
 
 					return nil
