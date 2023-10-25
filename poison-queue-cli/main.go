@@ -68,6 +68,7 @@ func (h *Handler) Preview(ctx context.Context) ([]Message, error) {
 		return nil, err
 	}
 	defer h.subscriber.Close()
+	defer h.publisher.Close()
 
 	firstID := ""
 	var result []Message
@@ -109,6 +110,7 @@ func (h *Handler) Remove(ctx context.Context, messageID string) error {
 		return err
 	}
 	defer h.subscriber.Close()
+	defer h.publisher.Close()
 
 	firstID := ""
 
@@ -126,6 +128,56 @@ func (h *Handler) Remove(ctx context.Context, messageID string) error {
 			}
 
 			if msg.UUID == messageID {
+				msg.Ack()
+				return nil
+			}
+
+			err = h.publisher.Publish(PoisonQueueTopic, msg)
+			if err != nil {
+				return err
+			}
+
+			msg.Ack()
+		}
+	}
+
+	return nil
+}
+
+func (h *Handler) Requeue(ctx context.Context, messageID string) error {
+	messages, err := h.subscriber.Subscribe(ctx, PoisonQueueTopic)
+	if err != nil {
+		return err
+	}
+	defer h.subscriber.Close()
+	defer h.publisher.Close()
+
+	firstID := ""
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		for msg := range messages {
+			if firstID == msg.UUID {
+				return fmt.Errorf("message %s not found", messageID)
+			}
+			fmt.Println(msg.UUID)
+			if firstID == "" {
+				firstID = msg.UUID
+			}
+
+			if msg.UUID == messageID {
+				topic := msg.Metadata.Get(middleware.PoisonedTopicKey)
+				if topic == "" {
+					return fmt.Errorf("failed to requeue message %s: no original topic", messageID)
+				}
+
+				err = h.publisher.Publish(topic, msg)
+				if err != nil {
+					return err
+				}
+
 				msg.Ack()
 				return nil
 			}
@@ -179,6 +231,24 @@ func main() {
 					}
 
 					err = h.Remove(c.Context, c.Args().First())
+					if err != nil {
+						return err
+					}
+
+					return nil
+				},
+			},
+			{
+				Name:      "requeue",
+				ArgsUsage: "<message_id>",
+				Usage:     "requeue message",
+				Action: func(c *cli.Context) error {
+					h, err := NewHandler()
+					if err != nil {
+						return err
+					}
+
+					err = h.Requeue(c.Context, c.Args().First())
 					if err != nil {
 						return err
 					}
