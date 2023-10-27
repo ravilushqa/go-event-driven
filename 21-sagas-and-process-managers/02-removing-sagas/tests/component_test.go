@@ -6,10 +6,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"exercise/service"
 	"net/http"
 	"testing"
 	"time"
+
+	"exercise/service"
 
 	"github.com/google/uuid"
 	"github.com/samber/lo"
@@ -18,6 +19,7 @@ import (
 )
 
 func TestComponent(t *testing.T) {
+	t.Setenv("POSTGRES_URL", "postgres://user:password@localhost:5432/db?sslmode=disable")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+
 	"exercise/common"
 	"exercise/orders"
-	"exercise/stock"
 )
 
 func Run(ctx context.Context) {
@@ -12,7 +12,6 @@ func Run(ctx context.Context) {
 		ctx,
 		[]common.AddHandlersFn{
 			orders.Initialize,
-			stock.Initialize,
 		},
 	)
 }

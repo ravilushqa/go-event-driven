@@ -3,10 +3,12 @@ package orders
 import (
 	"context"
 	"database/sql"
-	"exercise/common"
 	"net/http"
 
-	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/lib/pq"
+
+	"exercise/common"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -25,7 +27,7 @@ type GetOrderResponse struct {
 	Cancelled bool      `json:"cancelled" db:"cancelled"`
 }
 
-func mountHttpHandlers(e *echo.Echo, db *sqlx.DB, eventBus *cqrs.EventBus) {
+func mountHttpHandlers(e *echo.Echo, db *sqlx.DB) {
 	e.POST("/orders", func(c echo.Context) error {
 		order := PostOrderRequest{}
 		if err := c.Bind(&order); err != nil {
@@ -47,6 +49,42 @@ func mountHttpHandlers(e *echo.Echo, db *sqlx.DB, eventBus *cqrs.EventBus) {
 					return err
 				}
 
+				products := make([]uuid.UUID, 0, len(order.Products))
+				for product := range order.Products {
+					products = append(products, product)
+				}
+
+				type Stock struct {
+					ProductID uuid.UUID `db:"product_id"`
+					Quantity  int       `db:"quantity"`
+				}
+				stocks := make([]Stock, 0, len(order.Products))
+
+				err = tx.SelectContext(
+					ctx,
+					&stocks,
+					"SELECT product_id, quantity FROM stock WHERE product_id = ANY($1)",
+					pq.Array(products),
+				)
+				if err != nil {
+					return err
+				}
+
+				for _, stock := range stocks {
+					if stock.Quantity < order.Products[stock.ProductID] {
+						// Mark Order as Cancelled
+						_, err = tx.Exec(
+							"UPDATE orders SET cancelled = true WHERE order_id = $1",
+							order.OrderID,
+						)
+						if err != nil {
+							return err
+						}
+
+						return nil
+					}
+				}
+
 				for product, quantity := range order.Products {
 					_, err := tx.Exec(
 						"INSERT INTO order_products (order_id, product_id, quantity) VALUES ($1, $2, $3)",
@@ -57,13 +95,28 @@ func mountHttpHandlers(e *echo.Echo, db *sqlx.DB, eventBus *cqrs.EventBus) {
 					if err != nil {
 						return err
 					}
+
+					// Reduce Product Quantity (Remove from Stock)
+					_, err = tx.Exec(
+						"UPDATE stock SET quantity = quantity - $1 WHERE product_id = $2",
+						quantity,
+						product,
+					)
+					if err != nil {
+						return err
+					}
+
+					// Mark Order as Shipped
+					_, err = tx.Exec(
+						"UPDATE orders SET shipped = true WHERE order_id = $1",
+						order.OrderID,
+					)
+					if err != nil {
+						return err
+					}
 				}
 
-				// we should use outbox here, but I don't want to add you more stuff to remove
-				return eventBus.Publish(ctx, &common.OrderPlaced{
-					OrderID:  order.OrderID,
-					Products: order.Products,
-				})
+				return nil
 			},
 		)
 		if err != nil {
@@ -95,5 +148,29 @@ func mountHttpHandlers(e *echo.Echo, db *sqlx.DB, eventBus *cqrs.EventBus) {
 			Shipped:   order.Shipped,
 			Cancelled: order.Cancelled,
 		})
+	})
+
+	e.POST("/products-stock", func(c echo.Context) error {
+		productStock := common.ProductStock{}
+		if err := c.Bind(&productStock); err != nil {
+			return err
+		}
+		if productStock.Quantity <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "quantity must be greater than 0")
+		}
+		if productStock.ProductID == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "product_id must be provided")
+		}
+
+		_, err := db.Exec(`
+			INSERT INTO stock (product_id, quantity)
+			VALUES ($1, $2)
+			ON CONFLICT (product_id) DO UPDATE SET quantity = stock.quantity + $2
+		`, productStock.ProductID, productStock.Quantity)
+		if err != nil {
+			return err
+		}
+
+		return c.NoContent(http.StatusCreated)
 	})
 }

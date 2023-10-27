@@ -19,6 +19,11 @@ func initializeDatabaseSchema(db *sqlx.DB) {
 
 		    PRIMARY KEY (order_id, product_id)
 		);
+
+		CREATE TABLE IF NOT EXISTS stock (
+			product_id UUID PRIMARY KEY,
+			quantity INT NOT NULL
+		);
 	`)
 	if err != nil {
 		panic(err)
