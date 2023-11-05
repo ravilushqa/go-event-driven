@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
@@ -16,6 +17,14 @@ func (h Handler) BookFlightHandler() cqrs.CommandHandler {
 			log.FromContext(ctx).Infof("BookFlightHandler: %s", event.FlightID)
 			ticketIDs, err := h.transService.PutFlightTicketsWithResponse(ctx, *event)
 			if err != nil {
+				if errors.Is(err, entity.ErrConflict) {
+					return h.eventBus.Publish(ctx, entity.FlightBookingFailed_v1{
+						Header:        entity.NewEventHeader(),
+						FlightID:      event.FlightID,
+						FailureReason: "conflict while booking flight tickets",
+						ReferenceID:   event.ReferenceID,
+					})
+				}
 				return err
 			}
 

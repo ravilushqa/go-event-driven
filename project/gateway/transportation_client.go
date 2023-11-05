@@ -39,6 +39,10 @@ func (c TransportationClient) PutFlightTicketsWithResponse(ctx context.Context, 
 		return nil, fmt.Errorf("failed to flight tickets booking: %w", err)
 	}
 
+	if resp.StatusCode() == http.StatusConflict {
+		return nil, entity.ErrConflict
+	}
+
 	if resp.StatusCode() != http.StatusCreated {
 		return nil, fmt.Errorf("unexpected status code while flight tickets booking: %d", resp.StatusCode())
 	}
