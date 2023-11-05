@@ -67,6 +67,10 @@ func (c TransportationClient) PutTaxiBookingWithResponse(ctx context.Context, bo
 		return "", fmt.Errorf("failed to taxi booking: %w", err)
 	}
 
+	if resp.StatusCode() == http.StatusConflict {
+		return "", entity.ErrConflict
+	}
+
 	if resp.StatusCode() != http.StatusCreated {
 		return "", fmt.Errorf("unexpected status code while taxi booking: %d", resp.StatusCode())
 	}
