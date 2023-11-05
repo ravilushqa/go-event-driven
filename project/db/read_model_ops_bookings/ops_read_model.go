@@ -10,6 +10,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 
+	"tickets/db"
 	"tickets/entity"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
@@ -189,7 +190,7 @@ func (r OpsBookingReadModel) updateBookingReadModel(
 	bookingID string,
 	updateFunc func(ticket entity.OpsBooking) (entity.OpsBooking, error),
 ) (err error) {
-	return updateInTx(
+	return db.UpdateInTx(
 		ctx,
 		r.db,
 		sql.LevelRepeatableRead,
@@ -229,7 +230,7 @@ func (r OpsBookingReadModel) updateTicketInBookingReadModel(
 	ticketID string,
 	updateFunc func(ticket entity.OpsTicket) (entity.OpsTicket, error),
 ) (err error) {
-	return updateInTx(
+	return db.UpdateInTx(
 		ctx,
 		r.db,
 		sql.LevelRepeatableRead,
@@ -337,29 +338,4 @@ type dbExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
-func updateInTx(
-	ctx context.Context,
-	db *sqlx.DB,
-	isolation sql.IsolationLevel,
-	fn func(ctx context.Context, tx *sqlx.Tx) error,
-) (err error) {
-	tx, err := db.BeginTxx(ctx, &sql.TxOptions{Isolation: isolation})
-	if err != nil {
-		return fmt.Errorf("could not begin transaction: %w", err)
-	}
-
-	defer func() {
-		if err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				err = errors.Join(err, rollbackErr)
-			}
-			return
-		}
-
-		err = tx.Commit()
-	}()
-
-	return fn(ctx, tx)
 }

@@ -23,6 +23,8 @@ import (
 	"tickets/db/read_model_ops_bookings"
 	"tickets/db/shows"
 	"tickets/db/tickets"
+	"tickets/db/vip_bundle_repository"
+	"tickets/entity"
 	"tickets/http"
 	migrations "tickets/migration"
 	"tickets/pubsub"
@@ -80,6 +82,7 @@ func New(
 	ticketsRepo := tickets.NewPostgresRepository(db)
 	showsRepo := shows.NewPostgresRepository(db)
 	bookingsRepo := bookings.NewPostgresRepository(db)
+	vipBundleRepo := vip_bundle_repository.NewPostgresRepository(db)
 	opsReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db, eventBus)
 
 	eventsHandler := event.NewHandler(
@@ -102,6 +105,8 @@ func New(
 		eventBus,
 		receiptsService,
 		paymentService,
+		showsRepo,
+		bookingsRepo,
 	)
 
 	postgresSubscriber := outbox.NewPostgresSubscriber(db.DB, watermillLogger)
@@ -116,6 +121,7 @@ func New(
 	}
 
 	dataLake := dl.NewDataLake(db)
+	vipBundleProcessManager := entity.NewVipBundleProcessManager(commandBus, eventBus, vipBundleRepo)
 	watermillRouter, err := pubsub.NewWatermillRouter(
 		postgresSubscriber,
 		redisPublisher,
@@ -126,6 +132,7 @@ func New(
 		commandsHandler,
 		opsReadModel,
 		dataLake,
+		vipBundleProcessManager,
 		watermillLogger,
 	)
 	if err != nil {
@@ -141,6 +148,7 @@ func New(
 		showsRepo,
 		bookingsRepo,
 		opsReadModel,
+		vipBundleRepo,
 	)
 
 	return Service{

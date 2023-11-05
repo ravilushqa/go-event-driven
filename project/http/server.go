@@ -37,6 +37,10 @@ type OpsBookingReadModel interface {
 	ReservationReadModel(ctx context.Context, id string) (entity.OpsBooking, error)
 }
 
+type VipBundleRepository interface {
+	Add(ctx context.Context, vipBundle entity.VipBundle) error
+}
+
 type Server struct {
 	addr                  string
 	e                     *echo.Echo
@@ -47,6 +51,7 @@ type Server struct {
 	showsRepo             ShowsRepository
 	bookingsRepo          BookingsRepository
 	opsBookingReadModel   OpsBookingReadModel
+	vipBundleRepo         VipBundleRepository
 }
 
 func NewServer(
@@ -58,6 +63,7 @@ func NewServer(
 	showsRepo ShowsRepository,
 	bookingsRepo BookingsRepository,
 	opsBookingReadModel OpsBookingReadModel,
+	vipBundleRepo VipBundleRepository,
 ) *Server {
 	e := echoHTTP.NewEcho()
 
@@ -71,6 +77,7 @@ func NewServer(
 		showsRepo:             showsRepo,
 		bookingsRepo:          bookingsRepo,
 		opsBookingReadModel:   opsBookingReadModel,
+		vipBundleRepo:         vipBundleRepo,
 	}
 
 	e.Use(otelecho.Middleware("http-server"))
@@ -85,6 +92,7 @@ func NewServer(
 	e.POST("/tickets-status", server.PostTicketsStatus)
 	e.PUT("/ticket-refund/:ticket_id", server.TicketRefund)
 	e.POST("/book-tickets", server.PostBookTickets)
+	e.POST("/book-vip-bundle", server.PostBookVipBundle)
 
 	e.POST("/shows", server.PostShows)
 

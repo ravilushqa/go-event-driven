@@ -105,3 +105,13 @@ type InternalOpsReadModelUpdated struct {
 func (e InternalOpsReadModelUpdated) IsInternal() bool {
 	return true
 }
+
+type VipBundleInitialized_v1 struct {
+	Header      EventHeader `json:"header"`
+	VipBundleID string      `json:"vip_bundle_id"`
+	BookingID   string      `json:"booking_id"`
+}
+
+func (e VipBundleInitialized_v1) IsInternal() bool {
+	return false
+}

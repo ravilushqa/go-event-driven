@@ -29,6 +29,7 @@ func NewWatermillRouter(
 	commandsHandler command.Handler,
 	opsReadModel read_model_ops_bookings.OpsBookingReadModel,
 	dataLake DataLake,
+	vipBundleProcessManager *entity.VipBundleProcessManager,
 	watermillLogger watermill.LoggerAdapter,
 ) (*message.Router, error) {
 	router, err := message.NewRouter(message.RouterConfig{}, watermillLogger)
@@ -73,6 +74,10 @@ func NewWatermillRouter(
 			"ops_read_model.OnTicketRefunded",
 			opsReadModel.OnTicketRefunded,
 		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnVipBundleInitialized",
+			vipBundleProcessManager.OnVipBundleInitialized,
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to event processor: %w", err)
@@ -85,6 +90,7 @@ func NewWatermillRouter(
 
 	err = commandProcessor.AddHandlers(
 		commandsHandler.RefundTicketHandler(),
+		commandsHandler.BookShowTicketsHandler(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to command processor: %w", err)
