@@ -13,8 +13,6 @@ import (
 	"tickets/pubsub/outbox"
 )
 
-var ErrNoAvailableTickets = errors.New("no available tickets")
-
 type PostgresRepository struct {
 	db *sqlx.DB
 }
@@ -46,7 +44,7 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, 
 	}
 
 	if availableTickets < booking.NumberOfTickets {
-		return ErrNoAvailableTickets
+		return entity.ErrNoAvailableTickets
 	}
 
 	_, err = tx.NamedExecContext(ctx, `

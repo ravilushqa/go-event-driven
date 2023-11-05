@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
@@ -29,7 +30,18 @@ func (h Handler) BookShowTicketsHandler() cqrs.CommandHandler {
 			}
 
 			err = h.bookingsRepo.Store(ctx, booking, show.NumberOfTickets)
-			return err
+			if err != nil {
+				if errors.Is(err, entity.ErrNoAvailableTickets) {
+					return h.eventBus.Publish(ctx, entity.BookingFailed_v1{
+						Header:        entity.NewEventHeader(),
+						BookingID:     event.BookingID,
+						FailureReason: "not enough seats available",
+					})
+				}
+
+				return fmt.Errorf("could not store booking: %w", err)
+			}
+			return nil
 		},
 	)
 }

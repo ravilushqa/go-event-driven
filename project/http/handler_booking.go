@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"tickets/db/bookings"
 	"tickets/entity"
 )
 
@@ -33,7 +32,7 @@ func (s Server) PostBookTickets(c echo.Context) error {
 
 	err = s.bookingsRepo.Store(c.Request().Context(), booking, show.NumberOfTickets)
 	if err != nil {
-		if errors.Is(err, bookings.ErrNoAvailableTickets) {
+		if errors.Is(err, entity.ErrNoAvailableTickets) {
 			return echo.NewHTTPError(http.StatusBadRequest, "not enough seats available")
 		}
 
