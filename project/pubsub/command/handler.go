@@ -17,6 +17,11 @@ type PaymentService interface {
 	PutRefundsWithResponse(ctx context.Context, command entity.RefundTicket) error
 }
 
+type TransportationService interface {
+	PutFlightTicketsWithResponse(ctx context.Context, bookFlight entity.BookFlight) ([]string, error)
+	PutTaxiBookingWithResponse(ctx context.Context, bookTaxi entity.BookTaxi) (string, error)
+}
+
 type ShowsRepository interface {
 	Store(ctx context.Context, show entity.Show) error
 	Get(ctx context.Context, showID string) (entity.Show, error)
@@ -30,6 +35,7 @@ type Handler struct {
 	eventBus        *cqrs.EventBus
 	receiptsService ReceiptsService
 	paymentService  PaymentService
+	transService    TransportationService
 	showsRepo       ShowsRepository
 	bookingsRepo    BookingsRepository
 }
@@ -38,6 +44,7 @@ func NewHandler(
 	eventBus *cqrs.EventBus,
 	receiptsService ReceiptsService,
 	paymentService PaymentService,
+	transService TransportationService,
 	showRepo ShowsRepository,
 	bookingRepo BookingsRepository,
 ) Handler {
@@ -56,11 +63,15 @@ func NewHandler(
 	if bookingRepo == nil {
 		panic("missing bookingRepo")
 	}
+	if transService == nil {
+		panic("missing transService")
+	}
 
 	return Handler{
 		eventBus:        eventBus,
 		receiptsService: receiptsService,
 		paymentService:  paymentService,
+		transService:    transService,
 		showsRepo:       showRepo,
 		bookingsRepo:    bookingRepo,
 	}

@@ -66,6 +66,7 @@ func New(
 	fileService event.FileService,
 	deadNationService event.DeadNationService,
 	paymentService event.PaymentService,
+	transService command.TransportationService,
 	traceProvider *tracesdk.TracerProvider,
 ) Service {
 	var redisPublisher message.Publisher
@@ -105,6 +106,7 @@ func New(
 		eventBus,
 		receiptsService,
 		paymentService,
+		transService,
 		showsRepo,
 		bookingsRepo,
 	)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/google/uuid"
 )
 
 type VipBundle struct {
@@ -134,7 +135,7 @@ func (v VipBundleProcessManager) OnVipBundleInitialized(ctx context.Context, eve
 }
 
 func (v VipBundleProcessManager) OnBookingMade(ctx context.Context, event *BookingMade_v1) error {
-	_, err := v.repository.UpdateByBookingID(
+	vb, err := v.repository.UpdateByBookingID(
 		ctx,
 		event.BookingID,
 		func(vipBundle VipBundle) (VipBundle, error) {
@@ -143,18 +144,17 @@ func (v VipBundleProcessManager) OnBookingMade(ctx context.Context, event *Booki
 		},
 	)
 
-	return err
-	//if err != nil {
-	//	return err
-	//}
+	if err != nil {
+		return err
+	}
 
-	//return v.commandBus.Send(ctx, BookFlight{
-	//	CustomerEmail:  vb.CustomerEmail,
-	//	FlightID:       vb.InboundFlightID,
-	//	Passengers:     vb.Passengers,
-	//	ReferenceID:    vb.VipBundleID.String(),
-	//	IdempotencyKey: uuid.NewString(),
-	//})
+	return v.commandBus.Send(ctx, BookFlight{
+		CustomerEmail:  vb.CustomerEmail,
+		FlightID:       vb.InboundFlightID,
+		Passengers:     vb.Passengers,
+		ReferenceID:    vb.VipBundleID,
+		IdempotencyKey: uuid.NewString(),
+	})
 }
 
 func (v VipBundleProcessManager) OnTicketBookingConfirmed(ctx context.Context, event *TicketBookingConfirmed_v1) error {
@@ -181,92 +181,92 @@ func (v VipBundleProcessManager) OnTicketBookingConfirmed(ctx context.Context, e
 	return nil
 }
 
-//func (v VipBundleProcessManager) OnBookingFailed(ctx context.Context, event *BookingFailed_v1) error {
-//	vb, err := v.repository.GetByBookingID(ctx, event.BookingID)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return v.rollbackProcess(ctx, vb.VipBundleID)
-//}
-//
-//func (v VipBundleProcessManager) OnFlightBooked(ctx context.Context, event *FlightBooked_v1) error {
-//	vb, err := v.repository.UpdateByID(
-//		ctx,
-//		uuid.MustParse(event.ReferenceID),
-//		func(vipBundle VipBundle) (VipBundle, error) {
-//			if vipBundle.InboundFlightID == event.FlightID {
-//				vipBundle.InboundFlightBookedAt = &event.Header.PublishedAt
-//				vipBundle.InboundFlightTicketsIDs = event.TicketIDs
-//			}
-//			if vipBundle.ReturnFlightID == event.FlightID {
-//				vipBundle.ReturnFlightBookedAt = &event.Header.PublishedAt
-//				vipBundle.ReturnFlightTicketsIDs = event.TicketIDs
-//			}
-//
-//			return vipBundle, nil
-//		},
-//	)
-//	if err != nil {
-//		return err
-//	}
-//
-//	switch {
-//	case vb.InboundFlightBookedAt != nil && vb.ReturnFlightBookedAt == nil:
-//		return v.commandBus.Send(ctx, BookFlight{
-//			CustomerEmail:  vb.CustomerEmail,
-//			FlightID:       vb.ReturnFlightID,
-//			Passengers:     vb.Passengers,
-//			ReferenceID:    vb.VipBundleID.String(),
-//			IdempotencyKey: uuid.NewString(),
-//		})
-//	case vb.InboundFlightBookedAt != nil && vb.ReturnFlightBookedAt != nil:
-//		return v.commandBus.Send(ctx, BookTaxi{
-//			CustomerEmail:      vb.CustomerEmail,
-//			CustomerName:       vb.Passengers[0],
-//			NumberOfPassengers: vb.NumberOfTickets,
-//			ReferenceID:        vb.VipBundleID.String(),
-//			IdempotencyKey:     uuid.NewString(),
-//		})
-//	default:
-//		return fmt.Errorf(
-//			"unsupported state: InboundFlightBookedAt: %v, ReturnFlightBookedAt: %v",
-//			vb.InboundFlightBookedAt,
-//			vb.ReturnFlightBookedAt,
-//		)
-//	}
-//}
+func (v VipBundleProcessManager) OnBookingFailed(ctx context.Context, event *BookingFailed_v1) error {
+	vb, err := v.repository.GetByBookingID(ctx, event.BookingID)
+	if err != nil {
+		return err
+	}
 
-//func (v VipBundleProcessManager) OnFlightBookingFailed(ctx context.Context, event *FlightBookingFailed_v1) error {
-//	return v.rollbackProcess(ctx, uuid.MustParse(event.ReferenceID))
-//}
+	return v.rollbackProcess(ctx, vb.VipBundleID)
+}
 
-//func (v VipBundleProcessManager) OnTaxiBooked(ctx context.Context, event *TaxiBooked_v1) error {
-//	vb, err := v.repository.UpdateByID(
-//		ctx,
-//		uuid.MustParse(event.ReferenceID),
-//		func(vb VipBundle) (VipBundle, error) {
-//			vb.TaxiBookedAt = &event.Header.PublishedAt
-//			vb.TaxiBookingID = &event.TaxiBookingID
-//
-//			vb.IsFinalized = true
-//
-//			return vb, nil
-//		},
-//	)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return v.eventBus.Publish(ctx, VipBundleFinalized_v1{
-//		Header:      NewEventHeader(),
-//		VipBundleID: vb.VipBundleID,
-//	})
-//}
-//
-//func (v VipBundleProcessManager) OnTaxiBookingFailed(ctx context.Context, event *TaxiBookingFailed_v1) error {
-//	return v.rollbackProcess(ctx, uuid.MustParse(event.ReferenceID))
-//}
+func (v VipBundleProcessManager) OnFlightBooked(ctx context.Context, event *FlightBooked_v1) error {
+	vb, err := v.repository.UpdateByID(
+		ctx,
+		event.ReferenceID,
+		func(vipBundle VipBundle) (VipBundle, error) {
+			if vipBundle.InboundFlightID == event.FlightID {
+				vipBundle.InboundFlightBookedAt = &event.Header.PublishedAt
+				vipBundle.InboundFlightTicketsIDs = event.TicketIDs
+			}
+			if vipBundle.ReturnFlightID == event.FlightID {
+				vipBundle.ReturnFlightBookedAt = &event.Header.PublishedAt
+				vipBundle.ReturnFlightTicketsIDs = event.TicketIDs
+			}
+
+			return vipBundle, nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case vb.InboundFlightBookedAt != nil && vb.ReturnFlightBookedAt == nil:
+		return v.commandBus.Send(ctx, BookFlight{
+			CustomerEmail:  vb.CustomerEmail,
+			FlightID:       vb.ReturnFlightID,
+			Passengers:     vb.Passengers,
+			ReferenceID:    vb.VipBundleID,
+			IdempotencyKey: uuid.NewString(),
+		})
+	case vb.InboundFlightBookedAt != nil && vb.ReturnFlightBookedAt != nil:
+		return v.commandBus.Send(ctx, BookTaxi{
+			CustomerEmail:      vb.CustomerEmail,
+			CustomerName:       vb.Passengers[0],
+			NumberOfPassengers: vb.NumberOfTickets,
+			ReferenceID:        vb.VipBundleID,
+			IdempotencyKey:     uuid.NewString(),
+		})
+	default:
+		return fmt.Errorf(
+			"unsupported state: InboundFlightBookedAt: %v, ReturnFlightBookedAt: %v",
+			vb.InboundFlightBookedAt,
+			vb.ReturnFlightBookedAt,
+		)
+	}
+}
+
+func (v VipBundleProcessManager) OnFlightBookingFailed(ctx context.Context, event *FlightBookingFailed_v1) error {
+	return v.rollbackProcess(ctx, event.ReferenceID)
+}
+
+func (v VipBundleProcessManager) OnTaxiBooked(ctx context.Context, event *TaxiBooked_v1) error {
+	vb, err := v.repository.UpdateByID(
+		ctx,
+		event.ReferenceID,
+		func(vb VipBundle) (VipBundle, error) {
+			vb.TaxiBookedAt = &event.Header.PublishedAt
+			vb.TaxiBookingID = &event.TaxiBookingID
+
+			vb.IsFinalized = true
+
+			return vb, nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return v.eventBus.Publish(ctx, VipBundleFinalized_v1{
+		Header:      NewEventHeader(),
+		VipBundleID: vb.VipBundleID,
+	})
+}
+
+func (v VipBundleProcessManager) OnTaxiBookingFailed(ctx context.Context, event *TaxiBookingFailed_v1) error {
+	return v.rollbackProcess(ctx, event.ReferenceID)
+}
 
 func (v VipBundleProcessManager) rollbackProcess(ctx context.Context, vipBundleID string) error {
 	vb, err := v.repository.Get(ctx, vipBundleID)
@@ -279,20 +279,20 @@ func (v VipBundleProcessManager) rollbackProcess(ctx context.Context, vipBundleI
 			return err
 		}
 	}
-	//if vb.InboundFlightBookedAt != nil {
-	//	if err := v.commandBus.Send(ctx, CancelFlightTickets{
-	//		FlightTicketIDs: vb.InboundFlightTicketsIDs,
-	//	}); err != nil {
-	//		return err
-	//	}
-	//}
-	//if vb.ReturnFlightBookedAt != nil {
-	//	if err := v.commandBus.Send(ctx, CancelFlightTickets{
-	//		FlightTicketIDs: vb.ReturnFlightTicketsIDs,
-	//	}); err != nil {
-	//		return err
-	//	}
-	//}
+	if vb.InboundFlightBookedAt != nil {
+		if err := v.commandBus.Send(ctx, CancelFlightTickets{
+			FlightTicketIDs: vb.InboundFlightTicketsIDs,
+		}); err != nil {
+			return err
+		}
+	}
+	if vb.ReturnFlightBookedAt != nil {
+		if err := v.commandBus.Send(ctx, CancelFlightTickets{
+			FlightTicketIDs: vb.ReturnFlightTicketsIDs,
+		}); err != nil {
+			return err
+		}
+	}
 
 	_, err = v.repository.UpdateByID(
 		ctx,

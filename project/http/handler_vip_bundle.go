@@ -38,6 +38,7 @@ func (s Server) PostBookVipBundle(c echo.Context) error {
 		CustomerEmail:   r.CustomerEmail,
 		NumberOfTickets: r.NumberOfTickets,
 		Passengers:      r.Passengers,
+		InboundFlightID: r.InboundFlightID,
 	}
 
 	err = s.vipBundleRepo.Add(c.Request().Context(), vb)

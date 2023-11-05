@@ -78,6 +78,34 @@ func NewWatermillRouter(
 			"vip_bundle_process_manager.OnVipBundleInitialized",
 			vipBundleProcessManager.OnVipBundleInitialized,
 		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnBookingMade",
+			vipBundleProcessManager.OnBookingMade,
+		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnTicketBookingConfirmed",
+			vipBundleProcessManager.OnTicketBookingConfirmed,
+		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnBookingFailed",
+			vipBundleProcessManager.OnBookingFailed,
+		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnFlightBooked",
+			vipBundleProcessManager.OnFlightBooked,
+		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnFlightBookingFailed",
+			vipBundleProcessManager.OnFlightBookingFailed,
+		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnTaxiBooked",
+			vipBundleProcessManager.OnTaxiBooked,
+		),
+		cqrs.NewEventHandler(
+			"vip_bundle_process_manager.OnTaxiBookingFailed",
+			vipBundleProcessManager.OnTaxiBookingFailed,
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to event processor: %w", err)
@@ -91,6 +119,8 @@ func NewWatermillRouter(
 	err = commandProcessor.AddHandlers(
 		commandsHandler.RefundTicketHandler(),
 		commandsHandler.BookShowTicketsHandler(),
+		commandsHandler.BookFlightHandler(),
+		commandsHandler.BookTaxiHandler(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to command processor: %w", err)
