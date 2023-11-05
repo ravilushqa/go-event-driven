@@ -121,6 +121,7 @@ func NewWatermillRouter(
 		commandsHandler.BookShowTicketsHandler(),
 		commandsHandler.BookFlightHandler(),
 		commandsHandler.BookTaxiHandler(),
+		commandsHandler.CancelFlightHandler(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not add handlers to command processor: %w", err)

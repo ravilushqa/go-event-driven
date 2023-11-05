@@ -73,3 +73,28 @@ func (c TransportationClient) PutTaxiBookingWithResponse(ctx context.Context, bo
 
 	return resp.JSON201.BookingId.String(), nil
 }
+
+func (c TransportationClient) DeleteFlightTicketsWithResponse(ctx context.Context, cancelFlight entity.CancelFlightTickets) error {
+	var ticketIDs []uuid.UUID
+	for _, ticketID := range cancelFlight.FlightTicketIDs {
+		id, err := uuid.Parse(ticketID)
+		if err != nil {
+			return fmt.Errorf("failed to parse ticket id: %w", err)
+		}
+
+		ticketIDs = append(ticketIDs, id)
+	}
+
+	for _, ticketID := range ticketIDs {
+		resp, err := c.clients.Transportation.DeleteFlightTicketsTicketIdWithResponse(ctx, ticketID)
+		if err != nil {
+			return fmt.Errorf("failed to cancel flight tickets: %w", err)
+		}
+
+		if resp.StatusCode() != http.StatusNoContent {
+			return fmt.Errorf("unexpected status code while canceling flight tickets: %d", resp.StatusCode())
+		}
+	}
+
+	return nil
+}

@@ -20,6 +20,7 @@ type PaymentService interface {
 type TransportationService interface {
 	PutFlightTicketsWithResponse(ctx context.Context, bookFlight entity.BookFlight) ([]string, error)
 	PutTaxiBookingWithResponse(ctx context.Context, bookTaxi entity.BookTaxi) (string, error)
+	DeleteFlightTicketsWithResponse(ctx context.Context, cancelFlight entity.CancelFlightTickets) error
 }
 
 type ShowsRepository interface {
