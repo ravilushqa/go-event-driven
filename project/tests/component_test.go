@@ -54,6 +54,7 @@ func TestComponent(t *testing.T) {
 	filesClient := &gateway.FilesMock{}
 	deadNationClient := &gateway.DeadNationMock{}
 	paymentClient := &gateway.PaymentMock{}
+	transClient := &gateway.TransportationMock{}
 
 	traceProvider := trace.NewTracerProvider()
 
@@ -67,6 +68,7 @@ func TestComponent(t *testing.T) {
 			filesClient,
 			deadNationClient,
 			paymentClient,
+			transClient,
 			traceProvider,
 		)
 		assert.NoError(t, svc.Run(ctx))
