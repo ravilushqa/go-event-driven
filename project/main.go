@@ -49,6 +49,7 @@ func main() {
 	}
 
 	traceProvider := tracing.ConfigureTraceProvider(opts.JaegerEndpoint, opts.GatewayAddr)
+	defer traceProvider.Shutdown(ctx)
 
 	traceHttpClient := &http.Client{Transport: otelhttp.NewTransport(
 		http.DefaultTransport,

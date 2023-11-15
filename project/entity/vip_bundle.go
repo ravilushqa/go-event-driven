@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -145,6 +146,10 @@ func (v VipBundleProcessManager) OnBookingMade(ctx context.Context, event *Booki
 	)
 
 	if err != nil {
+		// is not vip bundle booking
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
 		return err
 	}
 

@@ -101,7 +101,6 @@ func (r OpsBookingReadModel) OnTicketBookingConfirmed(ctx context.Context, event
 		ctx,
 		event.BookingID,
 		func(rm entity.OpsBooking) (entity.OpsBooking, error) {
-
 			ticket, ok := rm.Tickets[event.TicketID]
 			if !ok {
 				// we are using zero-value of OpsTicket

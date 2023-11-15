@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"go.uber.org/goleak"
 
 	"tickets/db/tickets"
+	"tickets/db/vip_bundle_repository"
 	"tickets/entity"
 	"tickets/gateway"
 	"tickets/service"
@@ -55,8 +57,9 @@ func TestComponent(t *testing.T) {
 	deadNationClient := &gateway.DeadNationMock{}
 	paymentClient := &gateway.PaymentMock{}
 	transClient := &gateway.TransportationMock{}
-
 	traceProvider := trace.NewTracerProvider()
+
+	vbRepo := vip_bundle_repository.NewPostgresRepository(dbconn)
 
 	go func() {
 		svc := service.New(
@@ -137,6 +140,43 @@ func TestComponent(t *testing.T) {
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	assertVoidReceipt(t, receiptsClient, ticket.TicketID)
 	assertRefundIssued(t, paymentClient, ticket.TicketID)
+
+	// vip bundle
+	vb := vipBundleRequest{
+		CustomerEmail:   "test1@test.io",
+		InboundFlightID: uuid.NewString(),
+		NumberOfTickets: 1,
+		Passengers:      []string{"test1"},
+		ReturnFlightID:  uuid.NewString(),
+		ShowID:          showID,
+	}
+
+	resp = sendBookVipBundle(t, vb)
+	var vbResp vipBundleResponse
+	err = json.NewDecoder(resp.Body).Decode(&vbResp)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	assertVipBundleSuccessfullyBooked(t, vbRepo, vbResp)
+}
+
+func assertVipBundleSuccessfullyBooked(t *testing.T, vipBundleRepo entity.VipBundleRepository, resp vipBundleResponse) {
+	i := 0
+	assert.EventuallyWithT(
+		t,
+		func(t *assert.CollectT) {
+			fmt.Println("attempt", i)
+			i++
+			vb, err := vipBundleRepo.Get(context.Background(), resp.VipBundleID)
+			assert.NoError(t, err)
+			assert.Equal(t, resp.VipBundleID, vb.VipBundleID)
+			assert.Equal(t, resp.BookingID, vb.BookingID)
+			assert.True(t, vb.IsFinalized)
+			assert.False(t, vb.Failed)
+			fmt.Printf("%+v\n", vb)
+		},
+		10*time.Second,
+		100*time.Millisecond,
+	)
 }
 
 func assertVoidReceipt(t *testing.T, client *gateway.ReceiptsMock, id string) {
@@ -290,6 +330,20 @@ type postBookTicketsResponse struct {
 	BookingID string `json:"booking_id"`
 }
 
+type vipBundleRequest struct {
+	CustomerEmail   string   `json:"customer_email"`
+	InboundFlightID string   `json:"inbound_flight_id"`
+	NumberOfTickets int      `json:"number_of_tickets"`
+	Passengers      []string `json:"passengers"`
+	ReturnFlightID  string   `json:"return_flight_id"`
+	ShowID          string   `json:"show_id"`
+}
+
+type vipBundleResponse struct {
+	BookingID   string `json:"booking_id"`
+	VipBundleID string `json:"vip_bundle_id"`
+}
+
 func sendTicketsStatus(t *testing.T, req TicketsStatusRequest, idempotencyKey string) {
 	t.Helper()
 
@@ -374,6 +428,25 @@ func bookTickets(t *testing.T, request postBookTicketsRequest) *http.Response {
 	httpReq, err := http.NewRequest(
 		http.MethodPost,
 		"http://localhost:8080/book-tickets",
+		bytes.NewBuffer(payload),
+	)
+	httpReq.Header.Set("Content-Type", "application/json")
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	require.NoError(t, err)
+	return resp
+}
+
+func sendBookVipBundle(t *testing.T, vb vipBundleRequest) *http.Response {
+	t.Helper()
+
+	payload, err := json.Marshal(vb)
+	require.NoError(t, err)
+
+	httpReq, err := http.NewRequest(
+		http.MethodPost,
+		"http://localhost:8080/book-vip-bundle",
 		bytes.NewBuffer(payload),
 	)
 	httpReq.Header.Set("Content-Type", "application/json")

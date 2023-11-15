@@ -89,12 +89,12 @@ func (r PostgresRepository) Get(ctx context.Context, vipBundleID string) (entity
 
 func (r PostgresRepository) vipBundleByID(ctx context.Context, vipBundleID string, db Executor) (entity.VipBundle, error) {
 	var payload []byte
-	err := r.db.QueryRowContext(ctx, `
+	err := db.QueryRowContext(ctx, `
 		SELECT payload FROM vip_bundles WHERE vip_bundle_id = $1
 	`, vipBundleID).Scan(&payload)
 
 	if err != nil {
-		return entity.VipBundle{}, fmt.Errorf("could not get vip bundle: %w", err)
+		return entity.VipBundle{}, fmt.Errorf("could not get vip bundle by id: %w", err)
 	}
 
 	var vipBundle entity.VipBundle
@@ -117,6 +117,9 @@ func (r PostgresRepository) getByBookingID(ctx context.Context, bookingID string
 	`, bookingID).Scan(&payload)
 
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.VipBundle{}, entity.ErrNotFound
+		}
 		return entity.VipBundle{}, fmt.Errorf("could not get vip bundle: %w", err)
 	}
 
