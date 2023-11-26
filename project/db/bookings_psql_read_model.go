@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/jmoiron/sqlx"
 
 	"tickets/entity"
-
-	"github.com/ThreeDotsLabs/go-event-driven/common/log"
-	"github.com/jmoiron/sqlx"
 )
 
 type BookingsReadModel struct {

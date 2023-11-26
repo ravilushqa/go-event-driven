@@ -89,7 +89,7 @@ type testSMSClient struct {
 	failing bool
 }
 
-func (c *testSMSClient) SendSMS(phoneNumber string, msg string) error {
+func (c *testSMSClient) SendSMS(phoneNumber, msg string) error {
 	c.messageCount++
 
 	if c.messageCount == 1 {

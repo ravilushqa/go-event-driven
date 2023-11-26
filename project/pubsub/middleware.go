@@ -85,7 +85,6 @@ func useMiddlewares(router *message.Router, watermillLogger watermill.LoggerAdap
 				}
 				metrics.MessagesProcessed.With(labels).Inc()
 				metrics.MessagesProcessingDuration.With(labels).Observe(time.Since(now).Seconds())
-
 			}()
 
 			msgs, err := next(msg)

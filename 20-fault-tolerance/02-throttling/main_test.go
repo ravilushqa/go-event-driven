@@ -101,7 +101,7 @@ type testSMSClient struct {
 	blocked bool
 }
 
-func (c *testSMSClient) SendSMS(phoneNumber string, msg string) error {
+func (c *testSMSClient) SendSMS(phoneNumber, msg string) error {
 	if c.blocked {
 		return errors.New("the API is blocked, please contact support")
 	}

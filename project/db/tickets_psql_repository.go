@@ -32,7 +32,6 @@ func (r *TicketsPostgresRepository) Delete(ctx context.Context, ticketID string)
 		SET deleted_at = NOW()
 		WHERE ticket_id = $1
 	`, ticketID)
-
 	if err != nil {
 		return err
 	}

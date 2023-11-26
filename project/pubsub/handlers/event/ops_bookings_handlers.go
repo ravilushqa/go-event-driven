@@ -17,7 +17,6 @@ type OpsBookingHandlers struct {
 
 func NewOpsBookingHandlers(repo db.BookingsReadModel) OpsBookingHandlers {
 	return OpsBookingHandlers{repo: repo}
-
 }
 
 func (r OpsBookingHandlers) OnBookingMade(ctx context.Context, bookingMade *entity.BookingMade_v1) error {

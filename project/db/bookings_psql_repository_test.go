@@ -38,5 +38,4 @@ func TestPostgresRepository_Store(t *testing.T) {
 	err = repo.Store(ctx, booking, show.NumberOfTickets)
 	errNoAvailableTickets := entity.ErrNoAvailableTickets
 	assert.ErrorAs(t, err, &errNoAvailableTickets)
-
 }

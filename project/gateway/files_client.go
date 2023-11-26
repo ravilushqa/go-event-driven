@@ -19,7 +19,7 @@ func NewFilesClient(clients *clients.Clients) FilesClient {
 	}
 }
 
-func (c FilesClient) UploadFile(ctx context.Context, fileID string, fileContent string) error {
+func (c FilesClient) UploadFile(ctx context.Context, fileID, fileContent string) error {
 	resp, err := c.clients.Files.PutFilesFileIdContentWithTextBodyWithResponse(ctx, fileID, fileContent)
 	if err != nil {
 		return fmt.Errorf("failed to upload file %s: %w", fileID, err)

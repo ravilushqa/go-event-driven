@@ -12,7 +12,7 @@ import (
 )
 
 type orderStorage interface {
-	AddTrackingLink(ctx context.Context, orderID string, trackingLink string) error
+	AddTrackingLink(ctx context.Context, orderID, trackingLink string) error
 }
 
 var ErrNoTrackingLink = fmt.Errorf("no tracking link")

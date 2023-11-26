@@ -144,7 +144,6 @@ func (v VipBundleProcessManager) OnBookingMade(ctx context.Context, event *Booki
 			return vipBundle, nil
 		},
 	)
-
 	if err != nil {
 		// is not vip bundle booking
 		if errors.Is(err, ErrNotFound) {

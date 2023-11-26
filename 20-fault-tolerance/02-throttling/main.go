@@ -12,7 +12,7 @@ import (
 )
 
 type smsClient interface {
-	SendSMS(phoneNumber string, message string) error
+	SendSMS(phoneNumber, message string) error
 }
 
 type UserSignedUp struct {

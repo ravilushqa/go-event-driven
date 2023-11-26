@@ -26,9 +26,7 @@ import (
 	"tickets/gateway"
 )
 
-var (
-	httpAddress = ":8080"
-)
+var httpAddress = ":8080"
 
 func TestComponent(t *testing.T) {
 	defer goleak.VerifyNone(t,

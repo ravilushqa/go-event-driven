@@ -150,7 +150,6 @@ func NewRouter(storage *InvoiceReadModelStorage, eventProcessorConfig cqrs.Event
 			"InvoiceVoided",
 			func(ctx context.Context, event *InvoiceVoided) error {
 				return storage.OnInvoiceVoided(ctx, event)
-
 			},
 		),
 	)

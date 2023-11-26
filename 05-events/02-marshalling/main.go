@@ -72,7 +72,6 @@ func main() {
 			newMsg := message.NewMessage(watermill.NewUUID(), respBytes)
 
 			return []*message.Message{newMsg}, nil
-
 		},
 	)
 

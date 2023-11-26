@@ -15,8 +15,10 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var db *sqlx.DB
-var getDbOnce sync.Once
+var (
+	db        *sqlx.DB
+	getDbOnce sync.Once
+)
 
 func GetDb(t *testing.T) *sqlx.DB {
 	getDbOnce.Do(func() {

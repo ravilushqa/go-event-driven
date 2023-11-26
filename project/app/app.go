@@ -29,14 +29,12 @@ import (
 	"tickets/tracing"
 )
 
-var (
-	veryImportantCounter = promauto.NewCounter(prometheus.CounterOpts{
-		// metric will be named tickets_very_important_counter_total
-		Namespace: "tickets",
-		Name:      "very_important_counter_total",
-		Help:      "Total number of very important things processed",
-	})
-)
+var veryImportantCounter = promauto.NewCounter(prometheus.CounterOpts{
+	// metric will be named tickets_very_important_counter_total
+	Namespace: "tickets",
+	Name:      "very_important_counter_total",
+	Help:      "Total number of very important things processed",
+})
 
 func init() {
 	log.Init(logrus.InfoLevel)

@@ -93,7 +93,6 @@ func (r VipBundlePostgresRepository) vipBundleByID(ctx context.Context, vipBundl
 	err := db.QueryRowContext(ctx, `
 		SELECT payload FROM vip_bundles WHERE vip_bundle_id = $1
 	`, vipBundleID).Scan(&payload)
-
 	if err != nil {
 		return entity.VipBundle{}, fmt.Errorf("could not get vip bundle by id: %w", err)
 	}
@@ -116,7 +115,6 @@ func (r VipBundlePostgresRepository) getByBookingID(ctx context.Context, booking
 	err := db.QueryRowContext(ctx, `
 		SELECT payload FROM vip_bundles WHERE booking_id = $1
 	`, bookingID).Scan(&payload)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return entity.VipBundle{}, entity.ErrNotFound
