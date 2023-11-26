@@ -1,4 +1,4 @@
-package bookings
+package db
 
 import (
 	"context"
@@ -13,17 +13,17 @@ import (
 	"tickets/pubsub/outbox"
 )
 
-type PostgresRepository struct {
+type BookingsPostgresRepository struct {
 	db *sqlx.DB
 }
 
-func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+func NewBookingsPostgresRepository(db *sqlx.DB) *BookingsPostgresRepository {
+	return &BookingsPostgresRepository{db: db}
 }
 
 // Store stores booking in database and publishes event to event bus.
 // It uses transaction to ensure that booking is stored only if there are available tickets.
-func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, showTicketsCount int) error {
+func (r *BookingsPostgresRepository) Store(ctx context.Context, booking entity.Booking, showTicketsCount int) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
@@ -80,7 +80,7 @@ func (r *PostgresRepository) Store(ctx context.Context, booking entity.Booking, 
 	return nil
 }
 
-func (r *PostgresRepository) getAvailableTickets(ctx context.Context, tx *sqlx.Tx, showID string, showTicketsCount int) (int, error) {
+func (r *BookingsPostgresRepository) getAvailableTickets(ctx context.Context, tx *sqlx.Tx, showID string, showTicketsCount int) (int, error) {
 	var bookedTicketsCount int
 	err := tx.GetContext(ctx, &bookedTicketsCount, `
 		SELECT 

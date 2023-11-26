@@ -18,12 +18,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	dbLib "tickets/db"
-	"tickets/db/bookings"
-	dl "tickets/db/data_lake"
-	"tickets/db/read_model_ops_bookings"
-	"tickets/db/shows"
-	"tickets/db/tickets"
-	"tickets/db/vip_bundle_repository"
 	"tickets/entity"
 	"tickets/http"
 	migrations "tickets/migration"
@@ -53,7 +47,7 @@ type App struct {
 	watermillRouter *message.Router
 	httpServer      *http.Server
 	bookingHandlers event.OpsBookingHandlers
-	dataLake        dl.DataLake
+	dataLake        dbLib.DataLake
 	traceProvider   *tracesdk.TracerProvider
 }
 
@@ -80,11 +74,12 @@ func New(
 		panic(fmt.Errorf("failed to create event bus: %w", err))
 	}
 
-	ticketsRepo := tickets.NewPostgresRepository(db)
-	showsRepo := shows.NewPostgresRepository(db)
-	bookingsRepo := bookings.NewPostgresRepository(db)
-	vipBundleRepo := vip_bundle_repository.NewPostgresRepository(db)
-	bookingReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db, eventBus)
+	ticketsRepo := dbLib.NewTicketsPostgresRepository(db)
+	showsRepo := dbLib.NewShowsPostgresRepository(db)
+	bookingsRepo := dbLib.NewBookingsPostgresRepository(db)
+	vipBundleRepo := dbLib.NewVipBundlePostgresRepository(db)
+	bookingReadModel := dbLib.NewOpsBookingsReadModel(db, eventBus)
+	dataLake := dbLib.NewDataLake(db)
 	bookingsHandlers := event.NewOpsBookingHandlers(bookingReadModel)
 
 	eventsHandler := event.NewHandler(
@@ -123,7 +118,6 @@ func New(
 		panic(fmt.Errorf("failed to create redis subscriber: %w", err))
 	}
 
-	dataLake := dl.NewDataLake(db)
 	vipBundleProcessManager := entity.NewVipBundleProcessManager(commandBus, eventBus, vipBundleRepo)
 	watermillRouter, err := pubsub.NewWatermillRouter(
 		postgresSubscriber,

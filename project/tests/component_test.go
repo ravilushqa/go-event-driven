@@ -21,8 +21,7 @@ import (
 	"go.uber.org/goleak"
 
 	"tickets/app"
-	"tickets/db/tickets"
-	"tickets/db/vip_bundle_repository"
+	"tickets/db"
 	"tickets/entity"
 	"tickets/gateway"
 )
@@ -59,7 +58,7 @@ func TestComponent(t *testing.T) {
 	transClient := &gateway.TransportationMock{}
 	traceProvider := trace.NewTracerProvider()
 
-	vbRepo := vip_bundle_repository.NewPostgresRepository(dbconn)
+	vbRepo := db.NewVipBundlePostgresRepository(dbconn)
 
 	go func() {
 		svc := app.New(
@@ -201,8 +200,8 @@ func assertRefundIssued(t *testing.T, client *gateway.PaymentMock, id string) {
 	)
 }
 
-func assertTicketStoredInRepository(t *testing.T, db *sqlx.DB, ticket TicketStatus) {
-	ticketsRepo := tickets.NewPostgresRepository(db)
+func assertTicketStoredInRepository(t *testing.T, sqlxDB *sqlx.DB, ticket TicketStatus) {
+	ticketsRepo := db.NewTicketsPostgresRepository(sqlxDB)
 
 	assert.Eventually(
 		t,

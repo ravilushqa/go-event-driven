@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	db2 "tickets/db/data_lake"
+	"tickets/db"
 	"tickets/entity"
 	"tickets/pubsub/event"
 
@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func MigrateReadModel(ctx context.Context, dl db2.DataLake, rm event.OpsBookingHandlers) error {
+func MigrateReadModel(ctx context.Context, dl db.DataLake, rm event.OpsBookingHandlers) error {
 	var events []entity.DataLakeEvent
 
 	logger := log.FromContext(ctx)

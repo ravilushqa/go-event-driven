@@ -1,4 +1,4 @@
-package bookings
+package db
 
 import (
 	"context"
@@ -7,21 +7,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"tickets/db"
-	"tickets/db/shows"
 	"tickets/entity"
 )
 
 func TestPostgresRepository_Store(t *testing.T) {
 	ctx := context.Background()
-	container, url := db.StartPostgresContainer()
+	container, url := StartPostgresContainer()
 	defer container.Terminate(ctx)
 
 	t.Setenv("POSTGRES_URL", url)
-	db.GetDb(t)
+	GetDb(t)
 
-	repo := NewPostgresRepository(db.GetDb(t))
-	repoShows := shows.NewPostgresRepository(db.GetDb(t))
+	repo := NewBookingsPostgresRepository(GetDb(t))
+	repoShows := NewShowsPostgresRepository(GetDb(t))
 
 	show := entity.Show{
 		ShowID:          uuid.NewString(),

@@ -7,15 +7,15 @@ import (
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 
-	"tickets/db/read_model_ops_bookings"
+	"tickets/db"
 	"tickets/entity"
 )
 
 type OpsBookingHandlers struct {
-	repo read_model_ops_bookings.OpsBookingReadModel
+	repo db.BookingsReadModel
 }
 
-func NewOpsBookingHandlers(repo read_model_ops_bookings.OpsBookingReadModel) OpsBookingHandlers {
+func NewOpsBookingHandlers(repo db.BookingsReadModel) OpsBookingHandlers {
 	return OpsBookingHandlers{repo: repo}
 
 }

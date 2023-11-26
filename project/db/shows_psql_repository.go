@@ -1,4 +1,4 @@
-package shows
+package db
 
 import (
 	"context"
@@ -8,15 +8,15 @@ import (
 	"tickets/entity"
 )
 
-type PostgresRepository struct {
+type ShowsPostgresRepository struct {
 	db *sqlx.DB
 }
 
-func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+func NewShowsPostgresRepository(db *sqlx.DB) *ShowsPostgresRepository {
+	return &ShowsPostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Store(ctx context.Context, show entity.Show) error {
+func (r *ShowsPostgresRepository) Store(ctx context.Context, show entity.Show) error {
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO shows (show_id, dead_nation_id, number_of_tickets, start_time, title, venue)
 		VALUES (:show_id, :dead_nation_id, :number_of_tickets, :start_time, :title, :venue)
@@ -25,7 +25,7 @@ func (r *PostgresRepository) Store(ctx context.Context, show entity.Show) error 
 	return err
 }
 
-func (r *PostgresRepository) Get(ctx context.Context, showID string) (entity.Show, error) {
+func (r *ShowsPostgresRepository) Get(ctx context.Context, showID string) (entity.Show, error) {
 	var show entity.Show
 	err := r.db.GetContext(ctx, &show, `
 		SELECT show_id, dead_nation_id, number_of_tickets, start_time, title, venue

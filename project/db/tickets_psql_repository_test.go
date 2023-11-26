@@ -1,4 +1,4 @@
-package tickets
+package db
 
 import (
 	"context"
@@ -8,18 +8,17 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 
-	dbutils "tickets/db"
 	"tickets/entity"
 )
 
 func TestTicketsRepository_Add_idempotency(t *testing.T) {
 	ctx := context.Background()
-	container, url := dbutils.StartPostgresContainer()
+	container, url := StartPostgresContainer()
 	defer container.Terminate(ctx)
 
 	t.Setenv("POSTGRES_URL", url)
-	db := dbutils.GetDb(t)
-	repo := NewPostgresRepository(db)
+	db := GetDb(t)
+	repo := NewTicketsPostgresRepository(db)
 
 	ticketToAdd := entity.Ticket{
 		TicketID:      uuid.NewString(),
