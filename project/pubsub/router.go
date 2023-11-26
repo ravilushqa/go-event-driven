@@ -9,8 +9,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 
 	"tickets/entity"
-	"tickets/pubsub/command"
-	"tickets/pubsub/event"
+	"tickets/pubsub/handlers/command"
+	"tickets/pubsub/handlers/event"
 	"tickets/pubsub/outbox"
 )
 

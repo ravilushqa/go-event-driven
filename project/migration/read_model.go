@@ -8,7 +8,7 @@ import (
 
 	"tickets/db"
 	"tickets/entity"
-	"tickets/pubsub/event"
+	"tickets/pubsub/handlers/event"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/google/uuid"

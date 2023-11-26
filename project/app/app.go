@@ -23,8 +23,8 @@ import (
 	migrations "tickets/migration"
 	"tickets/pubsub"
 	"tickets/pubsub/bus"
-	"tickets/pubsub/command"
-	"tickets/pubsub/event"
+	"tickets/pubsub/handlers/command"
+	"tickets/pubsub/handlers/event"
 	"tickets/pubsub/outbox"
 	"tickets/tracing"
 )
