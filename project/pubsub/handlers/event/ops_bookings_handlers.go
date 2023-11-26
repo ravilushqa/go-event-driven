@@ -45,7 +45,7 @@ func (r OpsBookingHandlers) OnTicketBookingConfirmed(ctx context.Context, event 
 				log.
 					FromContext(ctx).
 					WithField("ticket_id", event.TicketID).
-					Debug("Creating ticket read model for ticket %s")
+					Debug("Creating ticket read model for ticket")
 			}
 
 			ticket.PriceAmount = event.Price.Amount
