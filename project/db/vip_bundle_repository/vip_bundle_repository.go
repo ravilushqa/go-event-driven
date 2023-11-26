@@ -37,6 +37,8 @@ type Executor interface {
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
+// Add adds vip bundle to the repository. It returns error if vip bundle with given ID already exists.
+// It also publishes VipBundleInitialized_v1 event.
 func (r PostgresRepository) Add(ctx context.Context, vipBundle entity.VipBundle) error {
 	payload, err := json.Marshal(vipBundle)
 	if err != nil {

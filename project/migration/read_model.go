@@ -7,15 +7,15 @@ import (
 	"time"
 
 	db2 "tickets/db/data_lake"
-	"tickets/db/read_model_ops_bookings"
 	"tickets/entity"
+	"tickets/pubsub/event"
 
 	"github.com/ThreeDotsLabs/go-event-driven/common/log"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
-func MigrateReadModel(ctx context.Context, dl db2.DataLake, rm read_model_ops_bookings.OpsBookingReadModel) error {
+func MigrateReadModel(ctx context.Context, dl db2.DataLake, rm event.OpsBookingHandlers) error {
 	var events []entity.DataLakeEvent
 
 	logger := log.FromContext(ctx)
@@ -111,7 +111,7 @@ type ticketRefunded_v0 struct {
 	TicketID string `json:"ticket_id"`
 }
 
-func migrateEvent(ctx context.Context, event entity.DataLakeEvent, rm read_model_ops_bookings.OpsBookingReadModel) error {
+func migrateEvent(ctx context.Context, event entity.DataLakeEvent, rm event.OpsBookingHandlers) error {
 	switch event.Name {
 	case "BookingMade_v0":
 		bookingMade, err := unmarshalDataLakeEvent[bookingMade_v0](event)

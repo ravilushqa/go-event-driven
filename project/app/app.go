@@ -52,7 +52,7 @@ type App struct {
 	db              *sqlx.DB
 	watermillRouter *message.Router
 	httpServer      *http.Server
-	opsReadModel    read_model_ops_bookings.OpsBookingReadModel
+	bookingHandlers event.OpsBookingHandlers
 	dataLake        dl.DataLake
 	traceProvider   *tracesdk.TracerProvider
 }
@@ -84,7 +84,8 @@ func New(
 	showsRepo := shows.NewPostgresRepository(db)
 	bookingsRepo := bookings.NewPostgresRepository(db)
 	vipBundleRepo := vip_bundle_repository.NewPostgresRepository(db)
-	opsReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db, eventBus)
+	bookingReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db, eventBus)
+	bookingsHandlers := event.NewOpsBookingHandlers(bookingReadModel)
 
 	eventsHandler := event.NewHandler(
 		eventBus,
@@ -132,7 +133,7 @@ func New(
 		eventsHandler,
 		commandProcessorConfig,
 		commandsHandler,
-		opsReadModel,
+		bookingsHandlers,
 		dataLake,
 		vipBundleProcessManager,
 		watermillLogger,
@@ -149,7 +150,7 @@ func New(
 		ticketsRepo,
 		showsRepo,
 		bookingsRepo,
-		opsReadModel,
+		bookingReadModel,
 		vipBundleRepo,
 	)
 
@@ -157,7 +158,7 @@ func New(
 		db,
 		watermillRouter,
 		httpServer,
-		opsReadModel,
+		bookingsHandlers,
 		dataLake,
 		traceProvider,
 	}
@@ -183,7 +184,7 @@ func (s App) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		err := migrations.MigrateReadModel(ctx, s.dataLake, s.opsReadModel)
+		err := migrations.MigrateReadModel(ctx, s.dataLake, s.bookingHandlers)
 		if err != nil {
 			log.FromContext(ctx).Errorf("failed to migrate read model: %s", err)
 		}

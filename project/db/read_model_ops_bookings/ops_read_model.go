@@ -81,86 +81,7 @@ func (r OpsBookingReadModel) ReservationReadModel(ctx context.Context, bookingID
 	return r.findReadModelByBookingID(ctx, bookingID, r.db)
 }
 
-func (r OpsBookingReadModel) OnBookingMade(ctx context.Context, bookingMade *entity.BookingMade_v1) error {
-	// this is the first event that should arrive, so we create the read model
-	err := r.createReadModel(ctx, entity.OpsBooking{
-		BookingID:  bookingMade.BookingID,
-		Tickets:    nil,
-		LastUpdate: time.Now(),
-		BookedAt:   bookingMade.Header.PublishedAt,
-	})
-	if err != nil {
-		return fmt.Errorf("could not create read model: %w", err)
-	}
-
-	return nil
-}
-
-func (r OpsBookingReadModel) OnTicketBookingConfirmed(ctx context.Context, event *entity.TicketBookingConfirmed_v1) error {
-	return r.updateBookingReadModel(
-		ctx,
-		event.BookingID,
-		func(rm entity.OpsBooking) (entity.OpsBooking, error) {
-			ticket, ok := rm.Tickets[event.TicketID]
-			if !ok {
-				// we are using zero-value of OpsTicket
-				log.
-					FromContext(ctx).
-					WithField("ticket_id", event.TicketID).
-					Debug("Creating ticket read model for ticket %s")
-			}
-
-			ticket.PriceAmount = event.Price.Amount
-			ticket.PriceCurrency = event.Price.Currency
-			ticket.CustomerEmail = event.CustomerEmail
-			ticket.ConfirmedAt = event.Header.PublishedAt
-
-			rm.Tickets[event.TicketID] = ticket
-
-			return rm, nil
-		},
-	)
-}
-
-func (r OpsBookingReadModel) OnTicketRefunded(ctx context.Context, event *entity.TicketRefunded_v1) error {
-	return r.updateTicketInBookingReadModel(
-		ctx,
-		event.TicketID,
-		func(rm entity.OpsTicket) (entity.OpsTicket, error) {
-			rm.RefundedAt = event.Header.PublishedAt
-
-			return rm, nil
-		},
-	)
-}
-
-func (r OpsBookingReadModel) OnTicketPrinted(ctx context.Context, event *entity.TicketPrinted_v1) error {
-	return r.updateTicketInBookingReadModel(
-		ctx,
-		event.TicketID,
-		func(rm entity.OpsTicket) (entity.OpsTicket, error) {
-			rm.PrintedAt = event.Header.PublishedAt
-			rm.PrintedFileName = event.FileName
-
-			return rm, nil
-		},
-	)
-}
-
-func (r OpsBookingReadModel) OnTicketReceiptIssued(ctx context.Context, issued *entity.TicketReceiptIssued_v1) error {
-	return r.updateTicketInBookingReadModel(
-		ctx,
-		issued.TicketID,
-		func(rm entity.OpsTicket) (entity.OpsTicket, error) {
-			rm.ReceiptIssuedAt = issued.IssuedAt
-			rm.ReceiptNumber = issued.ReceiptNumber
-
-			return rm, nil
-		},
-	)
-}
-
-func (r OpsBookingReadModel) createReadModel(
+func (r OpsBookingReadModel) CreateReadModel(
 	ctx context.Context,
 	booking entity.OpsBooking,
 ) (err error) {
@@ -184,7 +105,7 @@ func (r OpsBookingReadModel) createReadModel(
 	return nil
 }
 
-func (r OpsBookingReadModel) updateBookingReadModel(
+func (r OpsBookingReadModel) UpdateBookingReadModel(
 	ctx context.Context,
 	bookingID string,
 	updateFunc func(ticket entity.OpsBooking) (entity.OpsBooking, error),
@@ -224,7 +145,7 @@ func (r OpsBookingReadModel) updateBookingReadModel(
 	)
 }
 
-func (r OpsBookingReadModel) updateTicketInBookingReadModel(
+func (r OpsBookingReadModel) UpdateTicketInBookingReadModel(
 	ctx context.Context,
 	ticketID string,
 	updateFunc func(ticket entity.OpsTicket) (entity.OpsTicket, error),

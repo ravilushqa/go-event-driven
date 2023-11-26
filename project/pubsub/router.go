@@ -8,7 +8,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill/components/cqrs"
 	"github.com/ThreeDotsLabs/watermill/message"
 
-	"tickets/db/read_model_ops_bookings"
 	"tickets/entity"
 	"tickets/pubsub/command"
 	"tickets/pubsub/event"
@@ -27,7 +26,7 @@ func NewWatermillRouter(
 	eventHandler event.Handler,
 	commandProcessorConfig cqrs.CommandProcessorConfig,
 	commandsHandler command.Handler,
-	opsReadModel read_model_ops_bookings.OpsBookingReadModel,
+	opsBookingsHandlers event.OpsBookingHandlers,
 	dataLake DataLake,
 	vipBundleProcessManager *entity.VipBundleProcessManager,
 	watermillLogger watermill.LoggerAdapter,
@@ -56,23 +55,23 @@ func NewWatermillRouter(
 		eventHandler.PostTicketBookingHandler(),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnBookingMade",
-			opsReadModel.OnBookingMade,
+			opsBookingsHandlers.OnBookingMade,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketReceiptIssued",
-			opsReadModel.OnTicketReceiptIssued,
+			opsBookingsHandlers.OnTicketReceiptIssued,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketBookingConfirmed",
-			opsReadModel.OnTicketBookingConfirmed,
+			opsBookingsHandlers.OnTicketBookingConfirmed,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketPrinted",
-			opsReadModel.OnTicketPrinted,
+			opsBookingsHandlers.OnTicketPrinted,
 		),
 		cqrs.NewEventHandler(
 			"ops_read_model.OnTicketRefunded",
-			opsReadModel.OnTicketRefunded,
+			opsBookingsHandlers.OnTicketRefunded,
 		),
 		cqrs.NewEventHandler(
 			"vip_bundle_process_manager.OnVipBundleInitialized",
