@@ -49,7 +49,12 @@ func main() {
 	}
 
 	traceProvider := tracing.ConfigureTraceProvider(opts.JaegerEndpoint, opts.GatewayAddr)
-	defer traceProvider.Shutdown(ctx)
+	defer func() {
+		err := traceProvider.Shutdown(ctx)
+		if err != nil {
+			logger.WithError(err).Error("failed to shutdown trace provider")
+		}
+	}()
 
 	traceHttpClient := &http.Client{Transport: otelhttp.NewTransport(
 		http.DefaultTransport,

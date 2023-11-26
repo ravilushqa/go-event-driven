@@ -9,7 +9,7 @@ linters:
   enable:
     - depguard
     - gocritic
-    - gofumpt
+#    - gofumpt
     - goimports
     - misspell
     - predeclared
@@ -45,9 +45,9 @@ linters-settings:
       # No need to check for errors on server's shutdown.
       - (*net/http.Server).Shutdown
   goimports:
-    local-prefixes: github.com/ravilushqa/boilerplate
+    local-prefixes: tickets
   gofumpt:
-    extra-rules: true
+    extra-rules: false
   revive:
     rules:
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unused-parameter

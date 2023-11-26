@@ -37,7 +37,7 @@ func (r BookingsReadModel) AllReservations(receiptIssueDateFilter string) ([]ent
 
 	if receiptIssueDateFilter != "" {
 		// please keep in mind that this is not the most efficient way to do it
-		query += fmt.Sprintf(`
+		query += `
 			WHERE booking_id IN (
 				SELECT booking_id FROM (
 					SELECT booking_id, 
@@ -47,7 +47,7 @@ func (r BookingsReadModel) AllReservations(receiptIssueDateFilter string) ([]ent
 				) bookings_within_date 
 				WHERE receipt_issued_at = $1
 			)
-		`)
+		`
 		quaryArgs = append(quaryArgs, receiptIssueDateFilter)
 	}
 
@@ -161,8 +161,7 @@ func (r BookingsReadModel) UpdateTicketInBookingReadModel(
 				return fmt.Errorf("could not find read model: %w", err)
 			}
 
-			ticket, _ := rm.Tickets[ticketID]
-
+			ticket := rm.Tickets[ticketID]
 			updatedRm, err := updateFunc(ticket)
 			if err != nil {
 				return err

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"tickets/entity"
 )
@@ -26,7 +26,7 @@ func TestPostgresRepository_Store(t *testing.T) {
 		NumberOfTickets: 1,
 	}
 	err := repoShows.Store(ctx, show)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	booking := entity.Booking{
 		ShowID:          show.ShowID,
@@ -37,5 +37,5 @@ func TestPostgresRepository_Store(t *testing.T) {
 
 	err = repo.Store(ctx, booking, show.NumberOfTickets)
 	errNoAvailableTickets := entity.ErrNoAvailableTickets
-	assert.ErrorAs(t, err, &errNoAvailableTickets)
+	require.ErrorAs(t, err, &errNoAvailableTickets)
 }

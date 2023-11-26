@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/lithammer/shortuuid/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/goleak"
@@ -71,7 +69,7 @@ func TestComponent(t *testing.T) {
 			transClient,
 			traceProvider,
 		)
-		assert.NoError(t, svc.Run(ctx))
+		require.NoError(t, svc.Run(ctx))
 	}()
 
 	waitForHttpServer(t)
@@ -118,7 +116,7 @@ func TestComponent(t *testing.T) {
 		NumberOfTickets: 3,
 		CustomerEmail:   "test@test.io",
 	})
-	assert.Equal(t, http.StatusCreated, bookResp.StatusCode)
+	require.Equal(t, http.StatusCreated, bookResp.StatusCode)
 
 	bookingID := postBookTicketsResponse{}
 	err = json.NewDecoder(bookResp.Body).Decode(&bookingID)
@@ -130,11 +128,11 @@ func TestComponent(t *testing.T) {
 		NumberOfTickets: 3,
 		CustomerEmail:   "test@test.io",
 	})
-	assert.Equal(t, http.StatusBadRequest, bookResp.StatusCode)
+	require.Equal(t, http.StatusBadRequest, bookResp.StatusCode)
 
 	// refund
 	resp := sentTicketRefund(t, bookingID.BookingID)
-	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	require.Equal(t, http.StatusAccepted, resp.StatusCode)
 	assertVoidReceipt(t, receiptsClient, ticket.TicketID)
 	assertRefundIssued(t, paymentClient, ticket.TicketID)
 
@@ -152,24 +150,20 @@ func TestComponent(t *testing.T) {
 	var vbResp vipBundleResponse
 	err = json.NewDecoder(resp.Body).Decode(&vbResp)
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	assertVipBundleSuccessfullyBooked(t, vbRepo, vbResp)
 }
 
 func assertVipBundleSuccessfullyBooked(t *testing.T, vipBundleRepo entity.VipBundleRepository, resp vipBundleResponse) {
-	i := 0
-	assert.EventuallyWithT(
+	require.Eventually(
 		t,
-		func(t *assert.CollectT) {
-			fmt.Println("attempt", i)
-			i++
+		func() bool {
 			vb, err := vipBundleRepo.Get(context.Background(), resp.VipBundleID)
-			assert.NoError(t, err)
-			assert.Equal(t, resp.VipBundleID, vb.VipBundleID)
-			assert.Equal(t, resp.BookingID, vb.BookingID)
-			assert.True(t, vb.IsFinalized)
-			assert.False(t, vb.Failed)
-			fmt.Printf("%+v\n", vb)
+			return err == nil &&
+				resp.VipBundleID == vb.VipBundleID &&
+				resp.BookingID == vb.BookingID &&
+				vb.IsFinalized &&
+				!vb.Failed
 		},
 		10*time.Second,
 		100*time.Millisecond,
@@ -177,31 +171,33 @@ func assertVipBundleSuccessfullyBooked(t *testing.T, vipBundleRepo entity.VipBun
 }
 
 func assertVoidReceipt(t *testing.T, client *gateway.ReceiptsMock, id string) {
-	assert.EventuallyWithT(
+	require.Eventually(
 		t,
-		func(t *assert.CollectT) {
-			assert.Equal(t, 1, len(client.VoidedReceipts), "receipt for booking %s not voided", id)
+		func() bool {
+			return len(client.VoidedReceipts) == 1
 		},
 		10*time.Second,
 		100*time.Millisecond,
+		"receipt for booking %s not voided", id,
 	)
 }
 
 func assertRefundIssued(t *testing.T, client *gateway.PaymentMock, id string) {
-	assert.EventuallyWithT(
+	require.Eventually(
 		t,
-		func(t *assert.CollectT) {
-			assert.Equal(t, 1, len(client.Refunds), "receipt for booking %s not voided", id)
+		func() bool {
+			return len(client.Refunds) == 1
 		},
 		10*time.Second,
 		100*time.Millisecond,
+		"refund for booking %s not issued", id,
 	)
 }
 
 func assertTicketStoredInRepository(t *testing.T, sqlxDB *sqlx.DB, ticket TicketStatus) {
 	ticketsRepo := db.NewTicketsPostgresRepository(sqlxDB)
 
-	assert.Eventually(
+	require.Eventually(
 		t,
 		func() bool {
 			all, err := ticketsRepo.FindAll(context.Background())
@@ -222,44 +218,36 @@ func assertTicketStoredInRepository(t *testing.T, sqlxDB *sqlx.DB, ticket Ticket
 	)
 }
 
-func assertRowToSheetAdded(t *testing.T, spreadsheetsService *gateway.SpreadsheetsMock, ticket TicketStatus, sheetName string) bool {
-	return assert.EventuallyWithT(
+func assertRowToSheetAdded(t *testing.T, spreadsheetsService *gateway.SpreadsheetsMock, ticket TicketStatus, sheetName string) {
+	require.Eventually(
 		t,
-		func(t *assert.CollectT) {
+		func() bool {
 			rows, ok := spreadsheetsService.Rows[sheetName]
-			if !assert.True(t, ok, "sheet %s not found", sheetName) {
-				return
-			}
+			require.True(t, ok, "sheet %s not found", sheetName)
 
-			allValues := []string{}
-
+			var allValues []string
 			for _, row := range rows {
-				for _, col := range row {
-					allValues = append(allValues, col)
-				}
+				allValues = append(allValues, row...)
 			}
 
-			assert.Contains(t, allValues, ticket.TicketID, "ticket id not found in sheet %s", sheetName)
+			require.Contains(t, allValues, ticket.TicketID, "ticket id not found in sheet %s", sheetName)
+			return true
 		},
 		10*time.Second,
 		100*time.Millisecond,
 	)
 }
 
-func assertTicketPrinted(t *testing.T, filesAPI *gateway.FilesMock, ticket TicketStatus) bool {
-	return assert.EventuallyWithT(
+func assertTicketPrinted(t *testing.T, filesAPI *gateway.FilesMock, ticket TicketStatus) {
+	require.Eventually(
 		t,
-		func(t *assert.CollectT) {
+		func() bool {
 			content, err := filesAPI.DownloadFile(context.Background(), ticket.TicketID+"-ticket.html")
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
+			require.NotEmpty(t, content)
+			require.Contains(t, content, ticket.TicketID)
 
-			if assert.NotEmpty(t, content) {
-				return
-			}
-
-			assert.Contains(t, content, ticket.TicketID)
+			return true
 		},
 		10*time.Second,
 		100*time.Millisecond,
@@ -267,25 +255,23 @@ func assertTicketPrinted(t *testing.T, filesAPI *gateway.FilesMock, ticket Ticke
 }
 
 func assertReceiptForTicketIssued(t *testing.T, receiptsService *gateway.ReceiptsMock, ticket TicketStatus) {
-	assert.EventuallyWithT(
+	require.Eventually(
 		t,
-		func(collectT *assert.CollectT) {
-			issuedReceipts := len(receiptsService.IssuedReceipts)
-
-			assert.Equal(collectT, 1, issuedReceipts, "receipt for ticket %s not found", ticket.TicketID)
+		func() bool {
+			return len(receiptsService.IssuedReceipts) == 1
 		},
 		10*time.Second,
 		100*time.Millisecond,
+		"receipt for ticket %s not found", ticket.TicketID,
 	)
 
 	receipt, ok := lo.Find(lo.Values(receiptsService.IssuedReceipts), func(r entity.IssueReceiptRequest) bool {
 		return r.TicketID == ticket.TicketID
 	})
 	require.Truef(t, ok, "receipt for ticket %s not found", ticket.TicketID)
-
-	assert.Equal(t, ticket.TicketID, receipt.TicketID)
-	assert.Equal(t, ticket.Price.Amount, receipt.Price.Amount)
-	assert.Equal(t, ticket.Price.Currency, receipt.Price.Currency)
+	require.Equal(t, ticket.TicketID, receipt.TicketID)
+	require.Equal(t, ticket.Price.Amount, receipt.Price.Amount)
+	require.Equal(t, ticket.Price.Currency, receipt.Price.Currency)
 }
 
 type TicketsStatusRequest struct {
@@ -348,11 +334,6 @@ func sendTicketsStatus(t *testing.T, req TicketsStatusRequest, idempotencyKey st
 	require.NoError(t, err)
 
 	correlationID := shortuuid.New()
-
-	ticketIDs := make([]string, 0, len(req.Tickets))
-	for _, ticket := range req.Tickets {
-		ticketIDs = append(ticketIDs, ticket.TicketID)
-	}
 
 	httpReq, err := http.NewRequest(
 		http.MethodPost,
@@ -457,20 +438,18 @@ func sendBookVipBundle(t *testing.T, vb vipBundleRequest) *http.Response {
 func waitForHttpServer(t *testing.T) {
 	t.Helper()
 
-	require.EventuallyWithT(
+	require.Eventually(
 		t,
-		func(t *assert.CollectT) {
+		func() bool {
 			resp, err := http.Get("http://localhost:8080/health")
-			if !assert.NoError(t, err) {
-				return
+			if err != nil {
+				return false
 			}
 			defer resp.Body.Close()
-
-			if assert.Less(t, resp.StatusCode, 300, "API not ready, http status: %d", resp.StatusCode) {
-				return
-			}
+			return resp.StatusCode < 300
 		},
 		time.Second*10,
 		time.Millisecond*50,
+		"API not ready",
 	)
 }
