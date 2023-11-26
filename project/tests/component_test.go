@@ -20,11 +20,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/goleak"
 
+	"tickets/app"
 	"tickets/db/tickets"
 	"tickets/db/vip_bundle_repository"
 	"tickets/entity"
 	"tickets/gateway"
-	"tickets/service"
 )
 
 var (
@@ -62,7 +62,7 @@ func TestComponent(t *testing.T) {
 	vbRepo := vip_bundle_repository.NewPostgresRepository(dbconn)
 
 	go func() {
-		svc := service.New(
+		svc := app.New(
 			httpAddress,
 			dbconn,
 			redisClient,

@@ -1,4 +1,4 @@
-package service
+package app
 
 import (
 	"context"
@@ -48,7 +48,7 @@ func init() {
 	log.Init(logrus.InfoLevel)
 }
 
-type Service struct {
+type App struct {
 	db              *sqlx.DB
 	watermillRouter *message.Router
 	httpServer      *http.Server
@@ -68,7 +68,7 @@ func New(
 	paymentService event.PaymentService,
 	transService command.TransportationService,
 	traceProvider *tracesdk.TracerProvider,
-) Service {
+) App {
 	var redisPublisher message.Publisher
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
@@ -153,7 +153,7 @@ func New(
 		vipBundleRepo,
 	)
 
-	return Service{
+	return App{
 		db,
 		watermillRouter,
 		httpServer,
@@ -163,7 +163,7 @@ func New(
 	}
 }
 
-func (s Service) Run(ctx context.Context) error {
+func (s App) Run(ctx context.Context) error {
 	if err := dbLib.InitializeDatabaseSchema(s.db); err != nil {
 		return fmt.Errorf("failed to initialize database schema: %w", err)
 	}
@@ -200,7 +200,7 @@ func (s Service) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		// we don't want to start HTTP sferver before Watermill router (so service won't be healthy before it's ready)
+		// we don't want to start HTTP sferver before Watermill router (so app won't be healthy before it's ready)
 		<-s.watermillRouter.Running()
 
 		err := s.httpServer.Run(ctx)
