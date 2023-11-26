@@ -21,7 +21,6 @@ func PublishInTx(
 		},
 		logger,
 	)
-
 	if err != nil {
 		return err
 	}

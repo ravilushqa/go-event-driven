@@ -1,4 +1,4 @@
-package vip_bundle_repository
+package db
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 
-	"tickets/db"
 	"tickets/entity"
 	"tickets/pubsub/bus"
 	"tickets/pubsub/outbox"
@@ -20,16 +19,16 @@ const (
 	postgresUniqueValueViolationErrorCode = "23505"
 )
 
-type PostgresRepository struct {
+type VipBundlePostgresRepository struct {
 	db *sqlx.DB
 }
 
-func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
+func NewVipBundlePostgresRepository(db *sqlx.DB) *VipBundlePostgresRepository {
 	if db == nil {
 		panic("db must be set")
 	}
 
-	return &PostgresRepository{db: db}
+	return &VipBundlePostgresRepository{db: db}
 }
 
 type Executor interface {
@@ -37,13 +36,15 @@ type Executor interface {
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
-func (r PostgresRepository) Add(ctx context.Context, vipBundle entity.VipBundle) error {
+// Add adds vip bundle to the repository. It returns error if vip bundle with given ID already exists.
+// It also publishes VipBundleInitialized_v1 event.
+func (r VipBundlePostgresRepository) Add(ctx context.Context, vipBundle entity.VipBundle) error {
 	payload, err := json.Marshal(vipBundle)
 	if err != nil {
 		return fmt.Errorf("could not marshal vip bundle: %w", err)
 	}
 
-	return db.UpdateInTx(
+	return UpdateInTx(
 		ctx,
 		r.db,
 		sql.LevelRepeatableRead,
@@ -83,16 +84,15 @@ func (r PostgresRepository) Add(ctx context.Context, vipBundle entity.VipBundle)
 	)
 }
 
-func (r PostgresRepository) Get(ctx context.Context, vipBundleID string) (entity.VipBundle, error) {
+func (r VipBundlePostgresRepository) Get(ctx context.Context, vipBundleID string) (entity.VipBundle, error) {
 	return r.vipBundleByID(ctx, vipBundleID, r.db)
 }
 
-func (r PostgresRepository) vipBundleByID(ctx context.Context, vipBundleID string, db Executor) (entity.VipBundle, error) {
+func (r VipBundlePostgresRepository) vipBundleByID(ctx context.Context, vipBundleID string, db Executor) (entity.VipBundle, error) {
 	var payload []byte
 	err := db.QueryRowContext(ctx, `
 		SELECT payload FROM vip_bundles WHERE vip_bundle_id = $1
 	`, vipBundleID).Scan(&payload)
-
 	if err != nil {
 		return entity.VipBundle{}, fmt.Errorf("could not get vip bundle by id: %w", err)
 	}
@@ -106,16 +106,15 @@ func (r PostgresRepository) vipBundleByID(ctx context.Context, vipBundleID strin
 	return vipBundle, nil
 }
 
-func (r PostgresRepository) GetByBookingID(ctx context.Context, bookingID string) (entity.VipBundle, error) {
+func (r VipBundlePostgresRepository) GetByBookingID(ctx context.Context, bookingID string) (entity.VipBundle, error) {
 	return r.getByBookingID(ctx, bookingID, r.db)
 }
 
-func (r PostgresRepository) getByBookingID(ctx context.Context, bookingID string, db Executor) (entity.VipBundle, error) {
+func (r VipBundlePostgresRepository) getByBookingID(ctx context.Context, bookingID string, db Executor) (entity.VipBundle, error) {
 	var payload []byte
 	err := db.QueryRowContext(ctx, `
 		SELECT payload FROM vip_bundles WHERE booking_id = $1
 	`, bookingID).Scan(&payload)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return entity.VipBundle{}, entity.ErrNotFound
@@ -132,10 +131,10 @@ func (r PostgresRepository) getByBookingID(ctx context.Context, bookingID string
 	return vipBundle, nil
 }
 
-func (r PostgresRepository) UpdateByID(ctx context.Context, bookingID string, updateFn func(vipBundle entity.VipBundle) (entity.VipBundle, error)) (entity.VipBundle, error) {
+func (r VipBundlePostgresRepository) UpdateByID(ctx context.Context, bookingID string, updateFn func(vipBundle entity.VipBundle) (entity.VipBundle, error)) (entity.VipBundle, error) {
 	var vb entity.VipBundle
 
-	err := db.UpdateInTx(ctx, r.db, sql.LevelSerializable, func(ctx context.Context, tx *sqlx.Tx) error {
+	err := UpdateInTx(ctx, r.db, sql.LevelSerializable, func(ctx context.Context, tx *sqlx.Tx) error {
 		var err error
 		vb, err = r.vipBundleByID(ctx, bookingID, tx)
 		if err != nil {
@@ -169,10 +168,10 @@ func (r PostgresRepository) UpdateByID(ctx context.Context, bookingID string, up
 	return vb, nil
 }
 
-func (r PostgresRepository) UpdateByBookingID(ctx context.Context, bookingID string, updateFn func(vipBundle entity.VipBundle) (entity.VipBundle, error)) (entity.VipBundle, error) {
+func (r VipBundlePostgresRepository) UpdateByBookingID(ctx context.Context, bookingID string, updateFn func(vipBundle entity.VipBundle) (entity.VipBundle, error)) (entity.VipBundle, error) {
 	var vb entity.VipBundle
 
-	err := db.UpdateInTx(ctx, r.db, sql.LevelSerializable, func(ctx context.Context, tx *sqlx.Tx) error {
+	err := UpdateInTx(ctx, r.db, sql.LevelSerializable, func(ctx context.Context, tx *sqlx.Tx) error {
 		var err error
 		vb, err = r.getByBookingID(ctx, bookingID, tx)
 		if err != nil {

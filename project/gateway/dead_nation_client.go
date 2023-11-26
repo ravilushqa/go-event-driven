@@ -20,21 +20,21 @@ func NewDeadNationClient(clients *clients.Clients) DeadNationClient {
 	}
 }
 
-func (c DeadNationClient) PostTicketBooking(ctx context.Context, BookingID, CustomerAddress, EventID string, NumberOfTickets int) error {
-	bookingID, err := uuid.Parse(BookingID)
+func (c DeadNationClient) PostTicketBooking(ctx context.Context, bookingID, customerAddress, eventID string, numberOfTickets int) error {
+	bookingUUID, err := uuid.Parse(bookingID)
 	if err != nil {
 		return fmt.Errorf("failed to parse booking ID: %w", err)
 	}
 
-	eventID, err := uuid.Parse(EventID)
+	eventUUID, err := uuid.Parse(eventID)
 	if err != nil {
 		return fmt.Errorf("failed to parse event ID: %w", err)
 	}
 	resp, err := c.clients.DeadNation.PostTicketBookingWithResponse(ctx, dead_nation.PostTicketBookingRequest{
-		BookingId:       bookingID,
-		CustomerAddress: CustomerAddress,
-		EventId:         eventID,
-		NumberOfTickets: NumberOfTickets,
+		BookingId:       bookingUUID,
+		CustomerAddress: customerAddress,
+		EventId:         eventUUID,
+		NumberOfTickets: numberOfTickets,
 	},
 	)
 	if err != nil {

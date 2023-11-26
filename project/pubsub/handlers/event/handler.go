@@ -28,7 +28,7 @@ type ShowsRepository interface {
 }
 
 type FileService interface {
-	UploadFile(ctx context.Context, fileID string, fileContent string) error
+	UploadFile(ctx context.Context, fileID, fileContent string) error
 	DownloadFile(ctx context.Context, fileID string) (string, error)
 }
 

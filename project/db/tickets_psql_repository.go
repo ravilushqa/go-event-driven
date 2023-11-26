@@ -1,4 +1,4 @@
-package tickets
+package db
 
 import (
 	"context"
@@ -9,15 +9,15 @@ import (
 	"tickets/entity"
 )
 
-type PostgresRepository struct {
+type TicketsPostgresRepository struct {
 	db *sqlx.DB
 }
 
-func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+func NewTicketsPostgresRepository(db *sqlx.DB) *TicketsPostgresRepository {
+	return &TicketsPostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Store(ctx context.Context, ticket entity.Ticket) error {
+func (r *TicketsPostgresRepository) Store(ctx context.Context, ticket entity.Ticket) error {
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO tickets (ticket_id, price_amount, price_currency, customer_email)
 		VALUES (:ticket_id, :price_amount, :price_currency, :customer_email)
@@ -26,13 +26,12 @@ func (r *PostgresRepository) Store(ctx context.Context, ticket entity.Ticket) er
 	return err
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, ticketID string) error {
+func (r *TicketsPostgresRepository) Delete(ctx context.Context, ticketID string) error {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE tickets
 		SET deleted_at = NOW()
 		WHERE ticket_id = $1
 	`, ticketID)
-
 	if err != nil {
 		return err
 	}
@@ -49,7 +48,7 @@ func (r *PostgresRepository) Delete(ctx context.Context, ticketID string) error 
 	return nil
 }
 
-func (r *PostgresRepository) FindAll(ctx context.Context) ([]entity.Ticket, error) {
+func (r *TicketsPostgresRepository) FindAll(ctx context.Context) ([]entity.Ticket, error) {
 	var tickets []entity.Ticket
 	err := r.db.SelectContext(ctx, &tickets, `
 		SELECT ticket_id, price_amount, price_currency, customer_email

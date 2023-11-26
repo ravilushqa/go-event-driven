@@ -19,8 +19,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 
+	"tickets/app"
 	"tickets/gateway"
-	"tickets/service"
 	"tickets/tracing"
 )
 
@@ -49,7 +49,12 @@ func main() {
 	}
 
 	traceProvider := tracing.ConfigureTraceProvider(opts.JaegerEndpoint, opts.GatewayAddr)
-	defer traceProvider.Shutdown(ctx)
+	defer func() {
+		err := traceProvider.Shutdown(ctx)
+		if err != nil {
+			logger.WithError(err).Error("failed to shutdown trace provider")
+		}
+	}()
 
 	traceHttpClient := &http.Client{Transport: otelhttp.NewTransport(
 		http.DefaultTransport,
@@ -91,7 +96,7 @@ func main() {
 	redisClient := redis.NewClient(&redis.Options{Addr: opts.RedisAddr})
 	defer redisClient.Close()
 
-	err = service.New(
+	err = app.New(
 		opts.HTTPAddress,
 		db,
 		redisClient,
@@ -104,6 +109,6 @@ func main() {
 		traceProvider,
 	).Run(ctx)
 	if err != nil {
-		logger.WithError(err).Error("service failed")
+		logger.WithError(err).Error("app failed")
 	}
 }

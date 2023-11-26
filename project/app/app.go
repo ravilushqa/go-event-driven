@@ -1,4 +1,4 @@
-package service
+package app
 
 import (
 	"context"
@@ -18,42 +18,34 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	dbLib "tickets/db"
-	"tickets/db/bookings"
-	dl "tickets/db/data_lake"
-	"tickets/db/read_model_ops_bookings"
-	"tickets/db/shows"
-	"tickets/db/tickets"
-	"tickets/db/vip_bundle_repository"
 	"tickets/entity"
 	"tickets/http"
 	migrations "tickets/migration"
 	"tickets/pubsub"
 	"tickets/pubsub/bus"
-	"tickets/pubsub/command"
-	"tickets/pubsub/event"
+	"tickets/pubsub/handlers/command"
+	"tickets/pubsub/handlers/event"
 	"tickets/pubsub/outbox"
 	"tickets/tracing"
 )
 
-var (
-	veryImportantCounter = promauto.NewCounter(prometheus.CounterOpts{
-		// metric will be named tickets_very_important_counter_total
-		Namespace: "tickets",
-		Name:      "very_important_counter_total",
-		Help:      "Total number of very important things processed",
-	})
-)
+var veryImportantCounter = promauto.NewCounter(prometheus.CounterOpts{
+	// metric will be named tickets_very_important_counter_total
+	Namespace: "tickets",
+	Name:      "very_important_counter_total",
+	Help:      "Total number of very important things processed",
+})
 
 func init() {
 	log.Init(logrus.InfoLevel)
 }
 
-type Service struct {
+type App struct {
 	db              *sqlx.DB
 	watermillRouter *message.Router
 	httpServer      *http.Server
-	opsReadModel    read_model_ops_bookings.OpsBookingReadModel
-	dataLake        dl.DataLake
+	bookingHandlers event.OpsBookingHandlers
+	dataLake        dbLib.DataLake
 	traceProvider   *tracesdk.TracerProvider
 }
 
@@ -68,7 +60,7 @@ func New(
 	paymentService event.PaymentService,
 	transService command.TransportationService,
 	traceProvider *tracesdk.TracerProvider,
-) Service {
+) App {
 	var redisPublisher message.Publisher
 
 	watermillLogger := log.NewWatermill(log.FromContext(context.Background()))
@@ -80,11 +72,13 @@ func New(
 		panic(fmt.Errorf("failed to create event bus: %w", err))
 	}
 
-	ticketsRepo := tickets.NewPostgresRepository(db)
-	showsRepo := shows.NewPostgresRepository(db)
-	bookingsRepo := bookings.NewPostgresRepository(db)
-	vipBundleRepo := vip_bundle_repository.NewPostgresRepository(db)
-	opsReadModel := read_model_ops_bookings.NewOpsBookingReadModel(db, eventBus)
+	ticketsRepo := dbLib.NewTicketsPostgresRepository(db)
+	showsRepo := dbLib.NewShowsPostgresRepository(db)
+	bookingsRepo := dbLib.NewBookingsPostgresRepository(db)
+	vipBundleRepo := dbLib.NewVipBundlePostgresRepository(db)
+	bookingReadModel := dbLib.NewOpsBookingsReadModel(db, eventBus)
+	dataLake := dbLib.NewDataLake(db)
+	bookingsHandlers := event.NewOpsBookingHandlers(bookingReadModel)
 
 	eventsHandler := event.NewHandler(
 		eventBus,
@@ -122,7 +116,6 @@ func New(
 		panic(fmt.Errorf("failed to create redis subscriber: %w", err))
 	}
 
-	dataLake := dl.NewDataLake(db)
 	vipBundleProcessManager := entity.NewVipBundleProcessManager(commandBus, eventBus, vipBundleRepo)
 	watermillRouter, err := pubsub.NewWatermillRouter(
 		postgresSubscriber,
@@ -132,7 +125,7 @@ func New(
 		eventsHandler,
 		commandProcessorConfig,
 		commandsHandler,
-		opsReadModel,
+		bookingsHandlers,
 		dataLake,
 		vipBundleProcessManager,
 		watermillLogger,
@@ -149,21 +142,21 @@ func New(
 		ticketsRepo,
 		showsRepo,
 		bookingsRepo,
-		opsReadModel,
+		bookingReadModel,
 		vipBundleRepo,
 	)
 
-	return Service{
+	return App{
 		db,
 		watermillRouter,
 		httpServer,
-		opsReadModel,
+		bookingsHandlers,
 		dataLake,
 		traceProvider,
 	}
 }
 
-func (s Service) Run(ctx context.Context) error {
+func (s App) Run(ctx context.Context) error {
 	if err := dbLib.InitializeDatabaseSchema(s.db); err != nil {
 		return fmt.Errorf("failed to initialize database schema: %w", err)
 	}
@@ -183,7 +176,7 @@ func (s Service) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		err := migrations.MigrateReadModel(ctx, s.dataLake, s.opsReadModel)
+		err := migrations.MigrateReadModel(ctx, s.dataLake, s.bookingHandlers)
 		if err != nil {
 			log.FromContext(ctx).Errorf("failed to migrate read model: %s", err)
 		}
@@ -200,7 +193,7 @@ func (s Service) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
-		// we don't want to start HTTP sferver before Watermill router (so service won't be healthy before it's ready)
+		// we don't want to start HTTP sferver before Watermill router (so app won't be healthy before it's ready)
 		<-s.watermillRouter.Running()
 
 		err := s.httpServer.Run(ctx)

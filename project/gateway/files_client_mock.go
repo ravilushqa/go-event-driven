@@ -11,7 +11,7 @@ type FilesMock struct {
 	files map[string]string
 }
 
-func (c *FilesMock) UploadFile(ctx context.Context, fileID string, fileContent string) error {
+func (c *FilesMock) UploadFile(ctx context.Context, fileID, fileContent string) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 

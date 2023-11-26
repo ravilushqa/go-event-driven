@@ -50,5 +50,4 @@ func (s Server) PostBookVipBundle(c echo.Context) error {
 		VipBundleID: vb.VipBundleID,
 		BookingID:   vb.BookingID,
 	})
-
 }

@@ -20,7 +20,7 @@ type BookingData struct {
 	NumberOfTickets int
 }
 
-func (c *DeadNationMock) PostTicketBooking(_ context.Context, BookingID, CustomerAddress, EventID string, NumberOfTickets int) error {
+func (c *DeadNationMock) PostTicketBooking(_ context.Context, bookingID, customerAddress, eventID string, numberOfTickets int) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -28,20 +28,20 @@ func (c *DeadNationMock) PostTicketBooking(_ context.Context, BookingID, Custome
 		c.bookings = make(map[uuid.UUID]BookingData)
 	}
 
-	bookingUUID, err := uuid.Parse(BookingID)
+	bookingUUID, err := uuid.Parse(bookingID)
 	if err != nil {
 		return fmt.Errorf("could not parse booking uuid: %w", err)
 	}
-	eventUUID, err := uuid.Parse(EventID)
+	eventUUID, err := uuid.Parse(eventID)
 	if err != nil {
 		return fmt.Errorf("could not parse event uuid: %w", err)
 	}
 
 	bData := BookingData{
 		BookingID:       bookingUUID,
-		CustomerAddress: CustomerAddress,
+		CustomerAddress: customerAddress,
 		EventID:         eventUUID,
-		NumberOfTickets: NumberOfTickets,
+		NumberOfTickets: numberOfTickets,
 	}
 
 	c.bookings[bookingUUID] = bData

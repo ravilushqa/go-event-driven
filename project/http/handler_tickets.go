@@ -52,33 +52,30 @@ func (s Server) PostTicketsStatus(c echo.Context) error {
 	}
 
 	for _, ticket := range request.Tickets {
-		if ticket.Status == "confirmed" {
-			event := entity.TicketBookingConfirmed_v1{
+		switch ticket.Status {
+		case "confirmed":
+			err = s.eventbus.Publish(c.Request().Context(), &entity.TicketBookingConfirmed_v1{
 				Header:        entity.NewEventHeaderWithIdempotencyKey(idempotencyKey + ticket.TicketID),
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price:         ticket.Price,
 				BookingID:     ticket.BookingID,
-			}
-
-			err = s.eventbus.Publish(c.Request().Context(), event)
+			})
 			if err != nil {
 				return err
 			}
-		} else if ticket.Status == "canceled" {
-			event := entity.TicketBookingCanceled_v1{
+		case "canceled":
+			err = s.eventbus.Publish(c.Request().Context(), &entity.TicketBookingCanceled_v1{
 				Header:        entity.NewEventHeaderWithIdempotencyKey(idempotencyKey + ticket.TicketID),
 				TicketID:      ticket.TicketID,
 				CustomerEmail: ticket.CustomerEmail,
 				Price:         ticket.Price,
 				BookingID:     ticket.BookingID,
-			}
-
-			err = s.eventbus.Publish(c.Request().Context(), event)
+			})
 			if err != nil {
 				return err
 			}
-		} else {
+		default:
 			return fmt.Errorf("unknown ticket status: %s", ticket.Status)
 		}
 	}

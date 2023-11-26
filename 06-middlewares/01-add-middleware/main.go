@@ -223,7 +223,7 @@ func main() {
 
 type ScoreboardAPIClient struct{}
 
-func (c ScoreboardAPIClient) CreateTeamScoreboard(teamID string, correlationID string) error {
+func (c ScoreboardAPIClient) CreateTeamScoreboard(teamID, correlationID string) error {
 	clients, err := clients.NewClients(os.Getenv("GATEWAY_ADDR"), nil)
 	if err != nil {
 		return err

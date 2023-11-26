@@ -9,26 +9,28 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var db *sqlx.DB
-var getDbOnce sync.Once
+var (
+	db        *sqlx.DB
+	getDbOnce sync.Once
+)
 
 func GetDb(t *testing.T) *sqlx.DB {
 	getDbOnce.Do(func() {
 		var err error
 		db, err = sqlx.Open("postgres", os.Getenv("POSTGRES_URL"))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		t.Cleanup(func() {
 			db.Close()
 		})
 
 		err = InitializeDatabaseSchema(db)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	return db
 }
@@ -54,6 +56,9 @@ func StartPostgresContainer() (testcontainers.Container, string) {
 	}
 
 	connStr, err := postgresContainer.ConnectionString(ctx, "sslmode=disable", "application_name=test")
+	if err != nil {
+		panic(err)
+	}
 
 	return postgresContainer, connStr
 }

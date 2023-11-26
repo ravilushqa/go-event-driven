@@ -150,7 +150,7 @@ type testOrdersStorage struct {
 	counter int
 }
 
-func (t *testOrdersStorage) AddTrackingLink(ctx context.Context, orderID string, trackingLink string) error {
+func (t *testOrdersStorage) AddTrackingLink(ctx context.Context, orderID, trackingLink string) error {
 	t.counter++
 
 	if t.counter%5 == 0 {
