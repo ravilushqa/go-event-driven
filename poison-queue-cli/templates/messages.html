@@ -1,0 +1,95 @@
+{{if .Messages}}
+<div class="mb-4">
+    <div class="flex flex-wrap gap-4">
+        <div class="bg-blue-50 p-4 border border-blue-200 rounded-lg shadow-sm">
+            <div class="text-sm text-blue-800 font-semibold">Total Messages</div>
+            <div class="text-2xl font-bold text-blue-600">{{.Stats.Total}}</div>
+        </div>
+        
+        <!-- Topics Breakdown -->
+        <div class="bg-indigo-50 p-4 border border-indigo-200 rounded-lg shadow-sm flex-grow">
+            <div class="text-sm text-indigo-800 font-semibold">By Topic</div>
+            <div class="flex flex-wrap gap-2 mt-1">
+                {{range $topic, $count := .Stats.ByTopic}}
+                <span class="text-xs px-2 py-1 bg-indigo-100 text-indigo-800 rounded">
+                    {{$topic}}: {{$count}}
+                </span>
+                {{end}}
+            </div>
+        </div>
+        
+        <!-- Error Reasons Breakdown -->
+        <div class="bg-purple-50 p-4 border border-purple-200 rounded-lg shadow-sm flex-grow">
+            <div class="text-sm text-purple-800 font-semibold">By Error</div>
+            <div class="flex flex-wrap gap-2 mt-1">
+                {{range $reason, $count := .Stats.ByReason}}
+                <span class="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded" title="{{$reason}}">
+                    {{if gt (len $reason) 20}}{{slice $reason 0 20}}...{{else}}{{$reason}}{{end}}: {{$count}}
+                </span>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="overflow-x-auto">
+    <table class="min-w-full bg-white border border-gray-200 shadow-sm rounded-lg">
+        <thead>
+            <tr>
+                <th class="px-4 py-2 bg-gray-100 border-b text-left">Message ID</th>
+                <th class="px-4 py-2 bg-gray-100 border-b text-left">Original Topic</th>
+                <th class="px-4 py-2 bg-gray-100 border-b text-left">Reason</th>
+                <th class="px-4 py-2 bg-gray-100 border-b text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Messages}}
+            <tr id="message-{{.ID}}" class="hover:bg-gray-50">
+                <td class="px-4 py-3 border-b text-xs font-mono truncate max-w-[150px]" title="{{.ID}}">{{.ID}}</td>
+                <td class="px-4 py-3 border-b text-sm">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {{.OriginalTopic}}
+                    </span>
+                </td>
+                <td class="px-4 py-3 border-b text-sm">{{.Reason}}</td>
+                <td class="px-4 py-3 border-b text-center">
+                    <button 
+                        hx-post="/requeue/{{.ID}}"
+                        hx-confirm="Are you sure you want to requeue this message to the '{{.OriginalTopic}}' topic?"
+                        hx-target="#notification-area"
+                        hx-swap="innerHTML"
+                        hx-trigger="click"
+                        class="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 mr-2"
+                    >
+                        Requeue
+                    </button>
+                    <button 
+                        hx-delete="/remove/{{.ID}}"
+                        hx-confirm="Are you sure you want to remove this message?"
+                        hx-target="#notification-area"
+                        hx-swap="innerHTML"
+                        hx-trigger="click"
+                        class="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                    >
+                        Remove
+                    </button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-yellow-700">No messages found in the poison queue</p>
+        </div>
+    </div>
+</div>
+{{end}}

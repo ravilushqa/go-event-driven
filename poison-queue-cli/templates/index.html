@@ -1,0 +1,168 @@
+{{define "content"}}
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+    <div class="mb-4 flex flex-wrap gap-4 justify-between items-center">
+        <div>
+            <button
+                hx-get="/messages"
+                hx-target="#message-list"
+                hx-indicator="#loading"
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+                Load Messages
+            </button>
+            <div id="loading" class="htmx-indicator inline-block ml-4">
+                <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="flex items-center">
+            <span class="text-sm text-gray-500 mr-2">Auto-refresh:</span>
+            <button
+                id="auto-refresh-toggle"
+                class="px-3 py-1 text-xs rounded border border-gray-300 bg-gray-50 hover:bg-gray-100 mr-3"
+                onclick="toggleAutoRefresh()"
+            >
+                Off
+            </button>
+            
+            <button
+                hx-post="/generator?action=reset-cache"
+                hx-target="#notification-area"
+                hx-swap="innerHTML"
+                class="px-3 py-1 text-xs rounded border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 flex items-center"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reset Cache
+            </button>
+        </div>
+    </div>
+    
+    <div id="notification-area" class="mb-4"></div>
+    
+    <div id="message-list" class="mt-6">
+        <p class="text-gray-500">Click "Load Messages" to view messages in the poison queue</p>
+    </div>
+</div>
+
+<!-- Mock Data Controls -->
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Mock Data Controls</h2>
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <!-- Manual Generation -->
+        <div class="border p-4 rounded-lg bg-gray-50">
+            <h3 class="text-md font-medium text-gray-700 mb-3">Manual Generation</h3>
+            <div class="mb-3">
+                <button
+                    hx-post="/generate"
+                    hx-target="#notification-area"
+                    hx-swap="innerHTML"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+                >
+                    Generate Mock Message
+                </button>
+            </div>
+            <p class="text-xs text-gray-500">Generate a single mock message with random properties</p>
+        </div>
+        
+        <!-- Auto Generation -->
+        <div class="border p-4 rounded-lg bg-gray-50">
+            <h3 class="text-md font-medium text-gray-700 mb-3">Automatic Generation</h3>
+            
+            <div class="mb-3">
+                <div class="flex space-x-2">
+                    <button
+                        id="auto-generator-start"
+                        hx-post="/generator?action=start&interval=5s"
+                        hx-target="#notification-area"
+                        hx-swap="innerHTML"
+                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                    >
+                        Start
+                    </button>
+                    
+                    <button
+                        id="auto-generator-stop"
+                        hx-post="/generator?action=stop"
+                        hx-target="#notification-area"
+                        hx-swap="innerHTML"
+                        class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                    >
+                        Stop
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center mb-3">
+                <label for="interval" class="text-sm text-gray-600 mr-2">Interval:</label>
+                <select 
+                    id="interval" 
+                    class="border rounded px-2 py-1 text-sm"
+                    onchange="updateGeneratorInterval(this.value)"
+                >
+                    <option value="2s">2 seconds</option>
+                    <option value="5s" selected>5 seconds</option>
+                    <option value="10s">10 seconds</option>
+                    <option value="30s">30 seconds</option>
+                    <option value="1m">1 minute</option>
+                </select>
+            </div>
+            
+            <p class="text-xs text-gray-500">Automatically generate new messages at the specified interval</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-refresh functionality
+    let autoRefreshInterval;
+    
+    function toggleAutoRefresh() {
+        const button = document.getElementById('auto-refresh-toggle');
+        
+        if (button.innerText === 'Off') {
+            button.innerText = 'On (5s)';
+            button.classList.add('bg-green-100');
+            button.classList.add('border-green-300');
+            button.classList.remove('bg-gray-50');
+            button.classList.remove('border-gray-300');
+            
+            // Start auto-refresh
+            autoRefreshInterval = setInterval(() => {
+                htmx.trigger('#message-list', 'refreshMessages');
+            }, 5000);
+        } else {
+            button.innerText = 'Off';
+            button.classList.remove('bg-green-100');
+            button.classList.remove('border-green-300');
+            button.classList.add('bg-gray-50');
+            button.classList.add('border-gray-300');
+            
+            // Stop auto-refresh
+            clearInterval(autoRefreshInterval);
+        }
+    }
+    
+    // Auto-generator interval
+    function updateGeneratorInterval(interval) {
+        // Update the start button's hx-post attribute to include the new interval
+        const startBtn = document.getElementById('auto-generator-start');
+        startBtn.setAttribute('hx-post', `/generator?action=start&interval=${interval}`);
+    }
+    
+    // Listen for the custom refreshMessages event
+    document.body.addEventListener('refreshMessages', function() {
+        htmx.ajax('GET', '/messages', {target: '#message-list', swap: 'innerHTML'});
+    });
+    
+    // Load messages on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        htmx.ajax('GET', '/messages', {target: '#message-list', swap: 'innerHTML'});
+    });
+</script>
+{{end}}

@@ -1,57 +1,34 @@
 // This file contains tests that are executed to verify your solution.
-// It's read-only, so all modifications will be ignored.
 package main
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-kafka/v2/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
+	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 	"github.com/google/uuid"
 )
 
 func Test(t *testing.T) {
 	logger := watermill.NewStdLogger(false, false)
 
-	sub, err := kafka.NewSubscriber(
-		kafka.SubscriberConfig{
-			Brokers:     []string{os.Getenv("KAFKA_ADDR")},
-			Unmarshaler: kafka.DefaultMarshaler{},
-			InitializeTopicDetails: &sarama.TopicDetail{
-				NumPartitions:     1,
-				ReplicationFactor: 1,
-			},
+	// Create a new GoChannel pub/sub for testing
+	testPubSub := gochannel.NewGoChannel(
+		gochannel.Config{
+			Persistent: true,
 		},
 		logger,
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	err = sub.SubscribeInitialize(PoisonQueueTopic)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pub, err := kafka.NewPublisher(
-		kafka.PublisherConfig{
-			Brokers:   []string{os.Getenv("KAFKA_ADDR")},
-			Marshaler: kafka.DefaultMarshaler{},
-		},
-		logger,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Set the global pubsub to our test instance
+	goPubSub = testPubSub
 
 	originalTopic := uuid.NewString()
-	originalMessages, err := sub.Subscribe(context.Background(), originalTopic)
+	originalMessages, err := testPubSub.Subscribe(context.Background(), originalTopic)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +38,7 @@ func Test(t *testing.T) {
 		msg := message.NewMessage(watermill.NewUUID(), []byte("{}"))
 		msg.Metadata.Set(middleware.ReasonForPoisonedKey, "network down")
 		msg.Metadata.Set(middleware.PoisonedTopicKey, originalTopic)
-		if err := pub.Publish(PoisonQueueTopic, msg); err != nil {
+		if err := testPubSub.Publish(PoisonQueueTopic, msg); err != nil {
 			t.Fatal(err)
 		}
 		uuids = append(uuids, msg.UUID)

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poison Queue Manager</title>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- App JavaScript -->
+    <script src="/static/app.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .success-flash {
+            animation: flash-success 2s;
+        }
+        .error-flash {
+            animation: flash-error 2s;
+        }
+        @keyframes flash-success {
+            0% { background-color: #d1fae5; }
+            100% { background-color: transparent; }
+        }
+        @keyframes flash-error {
+            0% { background-color: #fee2e2; }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Poison Queue Manager</h1>
+            <p class="text-gray-600">Manage problematic messages in your Kafka poison queue</p>
+        </header>
+        
+        <main>
+            {{template "content" .}}
+        </main>
+        
+        <footer class="mt-12 border-t pt-4 text-gray-500 text-sm">
+            <p>Poison Queue Manager - Go Event-Driven</p>
+        </footer>
+    </div>
+</body>
+</html>
